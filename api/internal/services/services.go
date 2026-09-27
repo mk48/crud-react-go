@@ -1,0 +1,31 @@
+package services
+
+import (
+	"context"
+	"kfamily/internal/middleware"
+	"kfamily/internal/services/audithistory"
+	"kfamily/internal/services/auth"
+	"kfamily/internal/services/healthcheck"
+	"kfamily/internal/services/sample"
+	"kfamily/internal/services/samplechild"
+	"kfamily/internal/services/user"
+	"kfamily/internal/util"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/labstack/echo/v5"
+)
+
+func CreateServices(ctx context.Context, db *sqlx.DB, echo *echo.Echo, envs *util.AppENV) {
+
+	m := middleware.NewMiddleware(db, envs)
+
+	healthcheck.Init(echo, envs)
+
+	apiGroup := echo.Group("/api")
+	auth.Init(apiGroup)
+	user.Init(ctx, echo.Logger, db, apiGroup, m)
+	sample.Init(ctx, echo.Logger, db, apiGroup, m)
+	samplechild.Init(ctx, echo.Logger, db, apiGroup, m)
+	audithistory.Init(db, apiGroup, m)
+
+}

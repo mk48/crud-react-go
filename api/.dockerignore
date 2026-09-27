@@ -1,0 +1,16 @@
+.git
+.vscode
+.dockerignore
+.env
+.env.*
+.gitignore
+docker-compose.dev.yml
+docker-compose.yml
+Dockerfile
+Dockerfile.dev
+main_test.go
+Makefile
+README.md
+tmp
+sqlsamples
+docs

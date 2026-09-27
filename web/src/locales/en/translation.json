@@ -1,0 +1,93 @@
+{
+  "app": {
+    "title": "KFamily"
+  },
+  "cancel": "Cancel",
+  "continue": "Continue",
+  "error": "Error",
+  "try-again": "Try again",
+  "search": "Search",
+  "create": "Create",
+  "update": "Update",
+  "success": "Success",
+  "failed": "Failed",
+  "delete": "Delete",
+  "edit": "Edit",
+  "view": "View",
+  "deleted": "Deleted",
+  "yes": "Yes",
+  "no": "No",
+  "err-loading-data": "Something went wrong while loading data",
+  "no-data": "No data",
+  "create-success": "Created successfully",
+  "create-failed": "Create failed",
+  "update-success": "Updated successfully",
+  "update-failed": "Update failed",
+  "include-deleted-records": "Include deleted records",
+  "confirm-dialog": {
+    "description": "This action cannot be undone."
+  },
+  "pagination": {
+    "total-result": "Total results:",
+    "result-per-page": "Rows per page",
+    "page-n-of-total": "Page {{currentPage}} of {{totalPage}}"
+  },
+  "advancedQuery": {
+    "advanced-query": "Advanced query",
+    "clik-search": "Click search to run the query"
+  },
+  "sampleChildren": {
+    "page-title": "Sample children",
+    "sample-item": "Sample",
+    "sample-item-description": "The sample item this child belongs to",
+    "name": "Name",
+    "name-description": "A short name for the sample child item",
+    "name-placeholder": "Name",
+    "search-by-name": "Search by name",
+    "create-new-sample-children": "Create new sample child",
+    "delete-confirm-title": "Deleting sample child: {{Name}}",
+    "deleted-successfully": "Sample child: {{Name}} deleted successfully",
+    "delete-failed": "Can't delete the sample child {{Name}}",
+    "select-placeholder": "Select sample child",
+    "not-found": "Sample child is not available for this"
+  },
+  "user": {
+    "page-title": "Users",
+    "name": "Name",
+    "name-description": "Display name",
+    "name-placeholder": "Name",
+    "email": "Email",
+    "is-admin": "Admin",
+    "search-by-name-or-email": "Search by name or email",
+    "delete-confirm-title": "Deleting user: {{Name}}",
+    "deleted-successfully": "User: {{Name}} deleted successfully",
+    "delete-failed": "Can't delete the user {{Name}}",
+    "not-found": "User is not available for this"
+  },
+  "sidebar": {
+    "config": "Menu",
+    "log-out": "Log out"
+  },
+  "audit-history": {
+    "audit-history-records": "Audit history",
+    "action-by": "Action by",
+    "action-at": "Action at",
+    "no-actions": "(no actions)"
+  },
+  "samples": {
+    "page-title": "Samples",
+    "name": "Name",
+    "name-description": "A short name for the sample item",
+    "name-placeholder": "Name",
+    "description": "Description",
+    "description-description": "Optional longer description",
+    "description-placeholder": "Description",
+    "search-by-name": "Search by name or description",
+    "create-new-samples": "Create new sample",
+    "delete-confirm-title": "Deleting sample: {{Name}}",
+    "deleted-successfully": "Sample: {{Name}} deleted successfully",
+    "delete-failed": "Can't delete the sample {{Name}}",
+    "select-placeholder": "Select sample",
+    "not-found": "Sample is not available for this"
+  }
+}
