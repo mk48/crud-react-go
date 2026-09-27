@@ -25,6 +25,10 @@ type AppENV struct {
 	// value must be escaped as \n.
 	CasdoorCertificate string `env:"CASDOOR_CERTIFICATE,notEmpty"`
 
+	// Browser origins (scheme://host[:port]) allowed to call the API, e.g.
+	// the web app's URL. Comma-separated in the env var.
+	CorsAllowedOrigins []string `env:"CORS_ALLOWED_ORIGINS" envSeparator:"," envDefault:"http://localhost:5173"`
+
 	Version string
 }
 

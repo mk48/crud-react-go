@@ -50,11 +50,15 @@ func main() {
 	// create Echo server
 	e := echo.New()
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS("*"))
+	e.Use(middleware.CORS(env.CorsAllowedOrigins...))
 
 	services.CreateServices(context.Background(), db, e, env)
 
-	setupStateViz(e)
+	// statsviz exposes runtime internals and is opened directly in a browser
+	// (so it can't carry a Bearer token) - only serve it in dev.
+	if env.Env == "dev" {
+		setupStateViz(e)
+	}
 
 	//-------------- Graceful shutdown --------------
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
