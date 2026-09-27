@@ -36,6 +36,10 @@ func (mw *Middleware) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return c.JSON(http.StatusUnauthorized, util.HttpError(err, "Unauthorized. Can't verify token"))
 		}
 
+		if err := mw.validateClaims(claims); err != nil {
+			return c.JSON(http.StatusUnauthorized, util.HttpError(err, "Unauthorized. Token not valid for this application"))
+		}
+
 		sub := claims.User.Id
 		if sub == "" {
 			return c.JSON(http.StatusUnauthorized, util.HttpErrorMessage("Unauthorized. Token missing subject"))
@@ -88,6 +92,28 @@ func (mw *Middleware) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		// Call the next handler in the chain
 		return next(c)
 	}
+}
+
+// validateClaims checks that a signature-verified token was issued by our
+// Casdoor, for this application, as an access token. ParseJwtToken only
+// verifies the signature and expiry - and Casdoor applications commonly
+// share the built-in signing certificate - so a validly signed token could
+// otherwise belong to a different application, or be a (long-lived)
+// refresh token presented as an access token.
+func (mw *Middleware) validateClaims(claims *casdoorsdk.Claims) error {
+	if claims.TokenType != "access-token" {
+		return fmt.Errorf("unexpected token type %q", claims.TokenType)
+	}
+
+	if !claims.VerifyAudience(mw.env.CasdoorClientId, true) {
+		return fmt.Errorf("token audience %v does not match this application", claims.Audience)
+	}
+
+	if strings.TrimSuffix(claims.Issuer, "/") != strings.TrimSuffix(mw.env.CasdoorEndpoint, "/") {
+		return fmt.Errorf("unexpected token issuer %q", claims.Issuer)
+	}
+
+	return nil
 }
 
 // AdminMiddleware restricts access to admin users. It must run after
