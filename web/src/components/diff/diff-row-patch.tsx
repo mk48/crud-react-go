@@ -9,7 +9,8 @@ import { format } from "jsondiffpatch/formatters/html"
 import "jsondiffpatch/formatters/styles/html.css"
 
 interface props {
-  oldData: AuditHistory<AuditSnapshotBase>
+  // undefined for the create entry
+  oldData?: AuditHistory<AuditSnapshotBase>
   newData: AuditHistory<AuditSnapshotBase>
 }
 
@@ -17,7 +18,7 @@ const jsondiffpatch = create({})
 
 const DiffRowPatch: React.FC<props> = ({ oldData, newData }) => {
   const delta = jsondiffpatch.diff(
-    removeAuditCols(oldData.data),
+    removeAuditCols(oldData?.data ?? {}),
     removeAuditCols(newData.data)
   )
   const htmlDiff = format(delta)

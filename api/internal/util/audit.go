@@ -2,34 +2,65 @@ package util
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
-// RecordAudit inserts a row into audit_history capturing data as the new
-// state of sourceID after a create/update/delete. Call it right after the
-// mutation succeeds, typically passing the same params map used for the
-// insert/update/delete. db may be *sqlx.DB or *sqlx.Tx (see Execer) so it
-// can be folded into an existing transaction.
-func RecordAudit(ctx context.Context, db Execer, sourceID uuid.UUID, data any) error {
-	payload, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("unable to marshal audit data. err: %w", err)
-	}
+// Audit actions recorded in audit_history.action.
+const (
+	AuditCreate = "create"
+	AuditUpdate = "update"
+	AuditDelete = "delete"
+)
 
-	_, err = db.NamedExecContext(ctx, `INSERT INTO audit_history (id, source_id, data) VALUES (:id, :source_id, :data)`,
-		map[string]any{
-			"id":        uuid.New(),
-			"source_id": sourceID,
-			"data":      payload,
-		})
+// RecordAudit inserts a row into audit_history holding the full current row
+// of tableName with id sourceID (as JSON, snake_case column keys) - call it
+// right after the create/update/delete, inside the same transaction (see
+// Insert/UpdateByID), so the snapshot is exactly the state just written.
+// changedBy is the user who made the change.
+func RecordAudit(ctx context.Context, db Execer, tableName string, sourceID uuid.UUID, action string, changedBy uuid.UUID) error {
+	// clock_timestamp(), not now() (the transaction start), so several
+	// changes made in one transaction still sort in the order they happened.
+	// tableName is a trusted constant from each service (never user input),
+	// quoted where needed (e.g. `"user"`); audit_history stores it bare.
+	query := fmt.Sprintf(`
+		INSERT INTO audit_history (id, table_name, source_id, action, changed_by, data, created_at)
+		SELECT :id, :table_name, t.id, :action, :changed_by, to_jsonb(t), clock_timestamp()
+		FROM %s t
+		WHERE t.id = :source_id`, tableName)
+
+	result, err := db.NamedExecContext(ctx, query, map[string]any{
+		"id":         uuid.New(),
+		"table_name": strings.Trim(tableName, `"`),
+		"source_id":  sourceID,
+		"action":     action,
+		"changed_by": changedBy,
+	})
 	if err != nil {
 		return fmt.Errorf("unable to record audit history. err: %w", err)
 	}
 
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("unable to read audit history rows affected. err: %w", err)
+	}
+	if affected != 1 {
+		return fmt.Errorf("unable to record audit history: %s row %s not found", tableName, sourceID)
+	}
+
 	return nil
+}
+
+// auditActor returns params[key] - the created_by/updated_by/deleted_by
+// value of an Insert/UpdateByID - as the audit_history changed_by.
+func auditActor(params map[string]any, key string) (uuid.UUID, error) {
+	actor, ok := params[key].(uuid.UUID)
+	if !ok {
+		return uuid.UUID{}, fmt.Errorf("audited write must set %s to the acting user's id", key)
+	}
+	return actor, nil
 }
 
 // AuditSelectColumns lists the created_by/updated_by/deleted_by trio and

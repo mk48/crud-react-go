@@ -1,11 +1,9 @@
 import type { AuditColumn, IdEmail } from "./dto"
 
 // Base shape of `AuditHistory<T>["data"]` as recorded by the server for any
-// table (see the API's util.RecordAudit): snake_case keys - the literal Go
-// map keys, not JSON-tagged struct fields - and by-fields are bare user ids
-// (no email join). Only the fields relevant to that one action are present -
-// e.g. a delete snapshot has no other columns at all. Per-table snapshot
-// types should extend this with their own optional data columns.
+// table (see the API's util.RecordAudit): the full row as JSON, keyed by its
+// snake_case column names, with by-fields as bare user ids (no email join).
+// Per-table snapshot types should extend this with their own data columns.
 export interface AuditSnapshotBase {
   id?: string
   created_at?: string

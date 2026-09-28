@@ -73,8 +73,12 @@ func (mw *Middleware) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 					return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to update existing user's sub"))
 				}
 			} else if errors.Is(err, sql.ErrNoRows) {
-				name := claims.User.DisplayName
-				dbUser, err = mw.CreateUser(ctx, sub, claims.User.Email, &name)
+				// "user".name is NULL or non-blank (CHECK constraint).
+				var name *string
+				if displayName := strings.TrimSpace(claims.User.DisplayName); displayName != "" {
+					name = &displayName
+				}
+				dbUser, err = mw.CreateUser(ctx, sub, claims.User.Email, name)
 				if err != nil {
 					// A concurrent first request for the same sub may have
 					// created the user between our lookup and insert (the

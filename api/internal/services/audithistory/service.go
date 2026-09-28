@@ -22,7 +22,7 @@ func NewService(db *sqlx.DB) *Service {
 // primary key — most recent first.
 func (s *Service) List(ctx context.Context, sourceId uuid.UUID) ([]Dto, error) {
 	rows := []row{}
-	query := selectQuery + ` WHERE source_id = $1 ORDER BY created_at DESC`
+	query := selectQuery + ` WHERE source_id = $1 ORDER BY created_at DESC, id DESC`
 	if err := s.db.SelectContext(ctx, &rows, query, sourceId); err != nil {
 		return nil, fmt.Errorf("unable to load audit history. err: %w", err)
 	}

@@ -45,10 +45,13 @@ export interface AuditColumn {
 
 // One audit_history row. GET /api/v1/audit-history/{id} returns
 // `Result<AuditHistory<T>[]>` - an array of these, most recent first - not a
-// single wrapper object.
+// single wrapper object. `data` is the full source row right after the change.
 export interface AuditHistory<T> {
   id: string
+  tableName: string
   sourceId: string
+  action: "create" | "update" | "delete"
+  changedBy: string
   createdAt: string
   data: T
 }

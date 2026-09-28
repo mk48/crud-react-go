@@ -32,7 +32,7 @@ const AuditUserNameLoad: React.FC<props> = ({ auditModel }) => {
 
   return (
     <QueryBoundary
-      query={userQueries.get(apiClient, userId)}
+      query={userQueries.get(apiClient, userId, true)} // actor may since be deleted
       loadingFallback={<Loader2 className="size-4 animate-spin" />}
       errorFallback={<AuditUserName auditModel={auditModel} />}
     >

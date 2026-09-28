@@ -37,7 +37,7 @@ func NewService(db *sqlx.DB) *Service {
 func (s *Service) GetOne(ctx context.Context, id uuid.UUID, includeDeleted bool) (Dto, error) {
 	query := selectQuery + `WHERE sc.id = $1`
 	if !includeDeleted {
-		query = query + ` AND sc.deleted_by IS NULL`
+		query = query + ` AND sc.deleted_at IS NULL`
 	}
 	var r row
 	err := s.db.GetContext(ctx, &r, query, id)
@@ -139,7 +139,7 @@ func (s *Service) validSampleItemId(ctx context.Context, raw string) (uuid.UUID,
 	}
 
 	var exists bool
-	err = s.db.GetContext(ctx, &exists, `SELECT EXISTS (SELECT 1 FROM sample_items WHERE id = $1 AND deleted_by IS NULL)`, id)
+	err = s.db.GetContext(ctx, &exists, `SELECT EXISTS (SELECT 1 FROM sample_items WHERE id = $1 AND deleted_at IS NULL)`, id)
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("unable to check sample item. err: %w", err)
 	}

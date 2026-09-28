@@ -20,7 +20,7 @@ import (
 // query, searchable columns and row/Dto types differ between tables.
 //
 // selectQuery must read from tableName aliased as tableAlias and scan into
-// TRow, and TRow's table must have a deleted_by column (every audited table
+// TRow, and TRow's table must have a deleted_at column (every audited table
 // does - see util.RecordAudit); toDto converts each scanned row to its
 // public Dto shape.
 func List[TRow any, TDto any](
@@ -56,13 +56,17 @@ func List[TRow any, TDto any](
 	}
 
 	params := map[string]any{
-		"include_deleted": filter.IncludeDeletedRecords,
-		"search":          "%" + filter.Search + "%",
-		"limit":           filter.ResultsPerPage,
-		"offset":          filter.PageIndex * filter.ResultsPerPage,
+		"search": "%" + filter.Search + "%",
+		"limit":  filter.ResultsPerPage,
+		"offset": filter.PageIndex * filter.ResultsPerPage,
 	}
 
-	whereClause := fmt.Sprintf(`(:include_deleted OR %s.deleted_by IS NULL) AND %s`, tableAlias, searchClause)
+	// Built statically (not "(:include_deleted OR ...)") so the planner can
+	// use the live-rows partial indexes (WHERE deleted_at IS NULL).
+	whereClause := searchClause
+	if !filter.IncludeDeletedRecords {
+		whereClause = fmt.Sprintf(`%s.deleted_at IS NULL AND %s`, tableAlias, searchClause)
+	}
 
 	//total count
 	var total int
@@ -77,9 +81,10 @@ func List[TRow any, TDto any](
 	//page of rows
 	// id is a tie-breaker: without a unique last sort key, rows sharing the
 	// sort value can come back in a different order per query, so OFFSET
-	// paging would repeat or skip them across pages.
-	listQuery, listArgs, err := db.BindNamed(fmt.Sprintf(`%s WHERE %s ORDER BY %s.%s %s, %s.id LIMIT :limit OFFSET :offset`,
-		selectQuery, whereClause, tableAlias, orderColumn, orderDirection, tableAlias), params)
+	// paging would repeat or skip them across pages. Same direction as the
+	// sort, so one (column, id) index serves both ASC and DESC.
+	listQuery, listArgs, err := db.BindNamed(fmt.Sprintf(`%s WHERE %s ORDER BY %s.%s %s, %s.id %s LIMIT :limit OFFSET :offset`,
+		selectQuery, whereClause, tableAlias, orderColumn, orderDirection, tableAlias, orderDirection), params)
 	if err != nil {
 		return nil, fmt.Errorf("unable to bind %s list query. err: %w", tableName, err)
 	}

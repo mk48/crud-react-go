@@ -34,12 +34,17 @@ func Insert(ctx context.Context, db Execer, tableName string, id uuid.UUID, para
 
 	query := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s)`, tableName, strings.Join(cols, ", "), strings.Join(placeholders, ", "))
 
+	actor, err := auditActor(params, "created_by")
+	if err != nil {
+		return err
+	}
+
 	return inTx(ctx, db, func(tx Execer) error {
 		if _, err := tx.NamedExecContext(ctx, query, params); err != nil {
 			return fmt.Errorf("unable to insert into %s. err: %w", tableName, err)
 		}
 
-		return RecordAudit(ctx, tx, id, params)
+		return RecordAudit(ctx, tx, tableName, id, AuditCreate, actor)
 	})
 }
 
@@ -65,6 +70,16 @@ func UpdateByID(ctx context.Context, db Execer, tableName string, id uuid.UUID, 
 
 	query := fmt.Sprintf(`UPDATE %s SET %s WHERE id = :id AND deleted_at IS NULL`, tableName, strings.Join(setClauses, ", "))
 
+	// A soft delete is an update that sets deleted_at/deleted_by.
+	action, actorKey := AuditUpdate, "updated_by"
+	if _, ok := params["deleted_by"]; ok {
+		action, actorKey = AuditDelete, "deleted_by"
+	}
+	actor, err := auditActor(params, actorKey)
+	if err != nil {
+		return err
+	}
+
 	return inTx(ctx, db, func(tx Execer) error {
 		result, err := tx.NamedExecContext(ctx, query, params)
 		if err != nil {
@@ -79,7 +94,7 @@ func UpdateByID(ctx context.Context, db Execer, tableName string, id uuid.UUID, 
 			return fmt.Errorf("no live %s row with id %s. err: %w", tableName, id, sql.ErrNoRows)
 		}
 
-		return RecordAudit(ctx, tx, id, params)
+		return RecordAudit(ctx, tx, tableName, id, action, actor)
 	})
 }
 

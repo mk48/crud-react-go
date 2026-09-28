@@ -31,7 +31,7 @@ func NewService(db *sqlx.DB) *Service {
 func (s *Service) GetOne(ctx context.Context, id uuid.UUID, includeDeleted bool) (Dto, error) {
 	query := selectQuery + `WHERE s.id = $1`
 	if !includeDeleted {
-		query = query + ` AND s.deleted_by IS NULL`
+		query = query + ` AND s.deleted_at IS NULL`
 	}
 	var r row
 	err := s.db.GetContext(ctx, &r, query, id)

@@ -84,8 +84,8 @@ func AdvancedQuery[TRow any, TDto any](
 
 	//page of rows
 	// id is a tie-breaker so OFFSET paging is stable - see util.List.
-	listQuery, listArgs, err := db.BindNamed(fmt.Sprintf(`%s WHERE %s ORDER BY %s.%s %s, %s.id LIMIT :limit OFFSET :offset`,
-		selectQuery, qualifiedWhereCondition, tableAlias, orderColumn, orderDirection, tableAlias), params)
+	listQuery, listArgs, err := db.BindNamed(fmt.Sprintf(`%s WHERE %s ORDER BY %s.%s %s, %s.id %s LIMIT :limit OFFSET :offset`,
+		selectQuery, qualifiedWhereCondition, tableAlias, orderColumn, orderDirection, tableAlias, orderDirection), params)
 	if err != nil {
 		return nil, fmt.Errorf("unable to bind %s query list. err: %w", tableName, err)
 	}

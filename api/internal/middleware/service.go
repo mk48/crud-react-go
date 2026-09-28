@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"kfamily/internal/model"
@@ -16,7 +17,10 @@ import (
 // but we can't refer here, due to circular reference
 // so have the same logic here
 
+// GetUserByEmail matches case-insensitively: emails are stored lower-case
+// (the "user" table has CHECK (email = lower(email))).
 func (mw *Middleware) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	email = strings.ToLower(email)
 	var dest model.User
 	query := `SELECT * FROM "user" WHERE email = $1`
 	if err := mw.db.GetContext(ctx, &dest, query, email); err != nil {
@@ -49,6 +53,7 @@ func (mw *Middleware) CreateUser(
 ) (*model.User, error) {
 	id := uuid.New()
 	createdAt := time.Now()
+	email = strings.ToLower(email)
 
 	param := map[string]any{
 		"id":         id,

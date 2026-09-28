@@ -11,16 +11,15 @@ const HistoryDiff: React.FC<props> = ({ data }) => {
   return (
     <Table>
       <TableBody>
-        {data.map((item, index) => {
-          if (index === data.length - 1) return null
-          return (
-            <DiffRowPatch
-              key={item.id}
-              newData={item}
-              oldData={data[index + 1]}
-            />
-          )
-        })}
+        {/* Newest first; the oldest (create) entry is diffed against nothing,
+            so it shows every initial value. */}
+        {data.map((item, index) => (
+          <DiffRowPatch
+            key={item.id}
+            newData={item}
+            oldData={data[index + 1]}
+          />
+        ))}
       </TableBody>
     </Table>
   )
