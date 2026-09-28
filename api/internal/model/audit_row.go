@@ -33,13 +33,23 @@ func (a AuditRow) ToDto() dto.AuditDto {
 		DeletedAt: a.DeletedAt,
 	}
 
-	if a.UpdatedByID != nil {
-		d.UpdatedBy = &dto.IdEmail{Id: a.UpdatedByID.String(), Email: *a.UpdatedByEmail}
-	}
-
-	if a.DeletedAt != nil {
-		d.DeletedBy = &dto.IdEmail{Id: a.DeletedByID.String(), Email: *a.DeletedByEmail}
-	}
+	d.UpdatedBy = idEmail(a.UpdatedByID, a.UpdatedByEmail)
+	d.DeletedBy = idEmail(a.DeletedByID, a.DeletedByEmail)
 
 	return d
+}
+
+// idEmail builds an optional IdEmail from a nullable *_by column and its
+// LEFT JOINed email, without dereferencing either blindly - a nil pointer
+// here would otherwise panic the whole request.
+func idEmail(id *uuid.UUID, email *string) *dto.IdEmail {
+	if id == nil {
+		return nil
+	}
+
+	result := &dto.IdEmail{Id: id.String()}
+	if email != nil {
+		result.Email = *email
+	}
+	return result
 }

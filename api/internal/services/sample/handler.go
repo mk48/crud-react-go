@@ -97,6 +97,9 @@ func (h *Handler) Create(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, util.HttpError(err, "Unable to parse input values"))
 	}
+	if err = inputDTO.Validate(); err != nil {
+		return c.JSON(http.StatusBadRequest, util.HttpError(err, err.Error()))
+	}
 
 	loggedInUser := util.CurrentUser(c)
 	newlyCreated, err := h.service.Create(c.Request().Context(), inputDTO, loggedInUser.ID)
@@ -117,10 +120,15 @@ func (h *Handler) Update(c *echo.Context) error {
 	if err = c.Bind(&inputDTO); err != nil {
 		return c.JSON(http.StatusBadRequest, util.HttpError(err, "Unable to parse input values"))
 	}
+	if err = inputDTO.Validate(); err != nil {
+		return c.JSON(http.StatusBadRequest, util.HttpError(err, err.Error()))
+	}
 
 	loggedInUser := util.CurrentUser(c)
 	err = h.service.Update(c.Request().Context(), id, inputDTO, loggedInUser.ID)
-	if err != nil {
+	if errors.Is(err, sql.ErrNoRows) {
+		return c.JSON(http.StatusNotFound, util.HttpErrorMessage("Sample item not found"))
+	} else if err != nil {
 		return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to update sample item"))
 	}
 
@@ -135,7 +143,9 @@ func (h *Handler) Delete(c *echo.Context) error {
 
 	loggedInUser := util.CurrentUser(c)
 	err = h.service.Delete(c.Request().Context(), id, loggedInUser.ID)
-	if err != nil {
+	if errors.Is(err, sql.ErrNoRows) {
+		return c.JSON(http.StatusNotFound, util.HttpErrorMessage("Sample item not found"))
+	} else if err != nil {
 		return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to delete sample item"))
 	}
 

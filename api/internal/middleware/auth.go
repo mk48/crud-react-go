@@ -48,7 +48,7 @@ func (mw *Middleware) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		ctx := c.Request().Context()
 
 		dbUser, err := mw.GetUserBySub(ctx, sub)
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			// First time we've seen this sub - provision a local user record
 			// for them using the profile embedded in the token.
 			if claims.User.Email == "" {
@@ -62,22 +62,37 @@ func (mw *Middleware) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			// duplicate, which would violate the unique constraint on email.
 			existingUser, err := mw.GetUserByEmail(ctx, claims.User.Email)
 			if err == nil {
+				// Deleted rows are read-only (see util.UpdateByID), so refuse
+				// here rather than failing the sub update below.
+				if existingUser.DeletedAt != nil {
+					return c.JSON(http.StatusForbidden, util.HttpErrorMessage("Forbidden. User account is deleted"))
+				}
 				dbUser, err = mw.UpdateUserSub(ctx, existingUser, sub)
 				if err != nil {
+					c.Logger().Error("unable to update existing user's sub", "err", err)
 					return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to update existing user's sub"))
 				}
 			} else if errors.Is(err, sql.ErrNoRows) {
 				name := claims.User.DisplayName
 				dbUser, err = mw.CreateUser(ctx, sub, claims.User.Email, &name)
 				if err != nil {
-					return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to create the new user"))
+					// A concurrent first request for the same sub may have
+					// created the user between our lookup and insert (the
+					// insert then fails on the unique sub) - use theirs.
+					if existing, lookupErr := mw.GetUserBySub(ctx, sub); lookupErr == nil {
+						dbUser = existing
+					} else {
+						c.Logger().Error("unable to create the new user", "err", err)
+						return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to create the new user"))
+					}
 				}
 			} else {
+				c.Logger().Error("unable to look up user by email", "err", err)
 				return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to look up user by email"))
 			}
 		} else if err != nil {
-			fmt.Println(err)
-			return c.JSON(http.StatusUnauthorized, util.HttpError(err, "Error to get user by sub"))
+			c.Logger().Error("unable to get user by sub", "err", err)
+			return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to get user by sub"))
 		}
 
 		// Users are soft-deleted (see user.Service.Delete), so a deleted user

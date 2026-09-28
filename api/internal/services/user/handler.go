@@ -179,16 +179,23 @@ func (h *Handler) Update(c *echo.Context) error {
 	if err = c.Bind(&inputDTO); err != nil {
 		return c.JSON(http.StatusBadRequest, util.HttpError(err, "Unable to parse input values"))
 	}
+	if err = inputDTO.Validate(); err != nil {
+		return c.JSON(http.StatusBadRequest, util.HttpError(err, err.Error()))
+	}
 
 	loggedInUser := util.CurrentUser(c)
 	// An admin removing their own admin flag could leave no admin able to
 	// undo it - another admin has to do it.
-	if id == loggedInUser.ID && !inputDTO.IsAdmin {
+	if id == loggedInUser.ID && inputDTO.IsAdmin != nil && !*inputDTO.IsAdmin {
 		return c.JSON(http.StatusBadRequest, util.HttpErrorMessage("You can't remove your own admin access"))
 	}
 
 	err = h.service.Update(c.Request().Context(), id, inputDTO, loggedInUser.ID)
-	if err != nil {
+	if errors.Is(err, sql.ErrNoRows) {
+		return c.JSON(http.StatusNotFound, util.HttpErrorMessage("User not found"))
+	} else if errors.Is(err, ErrLastAdmin) {
+		return c.JSON(http.StatusConflict, util.HttpErrorMessage(ErrLastAdmin.Error()))
+	} else if err != nil {
 		return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to update user"))
 	}
 
@@ -217,7 +224,11 @@ func (h *Handler) Delete(c *echo.Context) error {
 	}
 
 	err = h.service.Delete(c.Request().Context(), id, loggedInUser.ID)
-	if err != nil {
+	if errors.Is(err, sql.ErrNoRows) {
+		return c.JSON(http.StatusNotFound, util.HttpErrorMessage("User not found"))
+	} else if errors.Is(err, ErrLastAdmin) {
+		return c.JSON(http.StatusConflict, util.HttpErrorMessage(ErrLastAdmin.Error()))
+	} else if err != nil {
 		return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to delete user"))
 	}
 

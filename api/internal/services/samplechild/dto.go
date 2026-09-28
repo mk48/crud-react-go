@@ -23,3 +23,19 @@ type (
 		dto.AuditDto
 	}
 )
+
+// Validate trims the input and checks it fits sample_child_items' columns.
+// sampleItemId is checked separately by the service (it needs the database).
+func (i *CreateInputDto) Validate() error {
+	var err error
+	i.Name, err = dto.TrimmedText("name", i.Name, true, 200)
+	return err
+}
+
+// Validate trims the input and checks it fits sample_child_items' columns.
+// sampleItemId is checked separately by the service (it needs the database).
+func (i *UpdateInputDto) Validate() error {
+	var err error
+	i.Name, err = dto.TrimmedText("name", i.Name, true, 200)
+	return err
+}

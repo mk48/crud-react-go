@@ -75,8 +75,11 @@ func List[TRow any, TDto any](
 	}
 
 	//page of rows
-	listQuery, listArgs, err := db.BindNamed(fmt.Sprintf(`%s WHERE %s ORDER BY %s.%s %s LIMIT :limit OFFSET :offset`,
-		selectQuery, whereClause, tableAlias, orderColumn, orderDirection), params)
+	// id is a tie-breaker: without a unique last sort key, rows sharing the
+	// sort value can come back in a different order per query, so OFFSET
+	// paging would repeat or skip them across pages.
+	listQuery, listArgs, err := db.BindNamed(fmt.Sprintf(`%s WHERE %s ORDER BY %s.%s %s, %s.id LIMIT :limit OFFSET :offset`,
+		selectQuery, whereClause, tableAlias, orderColumn, orderDirection, tableAlias), params)
 	if err != nil {
 		return nil, fmt.Errorf("unable to bind %s list query. err: %w", tableName, err)
 	}

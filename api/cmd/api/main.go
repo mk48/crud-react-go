@@ -49,6 +49,8 @@ func main() {
 
 	// create Echo server
 	e := echo.New()
+	e.Use(middleware.RequestID())
+	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS(env.CorsAllowedOrigins...))
 
@@ -68,8 +70,11 @@ func main() {
 		Address:         ":8080",
 		GracefulTimeout: 10 * time.Second,
 	}
+	// A graceful shutdown returns nil - any error here means the server
+	// failed (e.g. port in use), so exit non-zero for the orchestrator.
 	if err := sc.Start(ctx, e); err != nil {
 		e.Logger.Error("failed to start server", "error", err)
+		os.Exit(1)
 	}
 
 	e.Logger.Debug("shutting down")

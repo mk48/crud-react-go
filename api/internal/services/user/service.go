@@ -17,6 +17,10 @@ import (
 // tableName is double-quoted because "user" is a reserved word in Postgres.
 const tableName = `"user"`
 
+// ErrLastAdmin is returned by Update/Delete when the change would leave no
+// live admin.
+var ErrLastAdmin = errors.New("can't remove the last remaining admin")
+
 type (
 	Service struct {
 		db *sqlx.DB
@@ -73,14 +77,27 @@ func (s *Service) Query(ctx context.Context, filter dto.Filters, whereCondition 
 }
 
 // Update only touches name and is_admin - sub and email are immutable, set
-// once by AuthMiddleware at first sign-in.
+// once by AuthMiddleware at first sign-in. is_admin is left unchanged when
+// input.IsAdmin is nil.
 func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInputDto, loggedInUserId uuid.UUID) error {
-	err := util.UpdateByID(ctx, s.db, tableName, id, map[string]any{
+	params := map[string]any{
 		"id":         id,
 		"name":       input.Name,
-		"is_admin":   input.IsAdmin,
 		"updated_at": time.Now(),
 		"updated_by": loggedInUserId,
+	}
+	if input.IsAdmin != nil {
+		params["is_admin"] = *input.IsAdmin
+	}
+	demoting := input.IsAdmin != nil && !*input.IsAdmin
+
+	err := util.WithTx(ctx, s.db, func(tx *sqlx.Tx) error {
+		if demoting {
+			if err := guardLastAdmin(ctx, tx, id); err != nil {
+				return err
+			}
+		}
+		return util.UpdateByID(ctx, tx, tableName, id, params)
 	})
 	if err != nil {
 		return fmt.Errorf("unable to update user. err: %w", err)
@@ -90,13 +107,36 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInputDto
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID, loggedInUserId uuid.UUID) error {
-	err := util.UpdateByID(ctx, s.db, tableName, id, map[string]any{
-		"id":         id,
-		"deleted_at": time.Now(),
-		"deleted_by": loggedInUserId,
+	err := util.WithTx(ctx, s.db, func(tx *sqlx.Tx) error {
+		if err := guardLastAdmin(ctx, tx, id); err != nil {
+			return err
+		}
+		return util.UpdateByID(ctx, tx, tableName, id, map[string]any{
+			"id":         id,
+			"deleted_at": time.Now(),
+			"deleted_by": loggedInUserId,
+		})
 	})
 	if err != nil {
 		return fmt.Errorf("unable to delete user. err: %w", err)
+	}
+
+	return nil
+}
+
+// guardLastAdmin returns ErrLastAdmin if id is the only live admin. It locks
+// the live admin rows (FOR UPDATE) until tx ends, so two admins demoting or
+// deleting each other at the same moment can't both pass the check and
+// leave no admin at all.
+func guardLastAdmin(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) error {
+	adminIds := []uuid.UUID{}
+	query := `SELECT id FROM "user" WHERE is_admin AND deleted_at IS NULL FOR UPDATE`
+	if err := tx.SelectContext(ctx, &adminIds, query); err != nil {
+		return fmt.Errorf("unable to load admins. err: %w", err)
+	}
+
+	if len(adminIds) == 1 && adminIds[0] == id {
+		return ErrLastAdmin
 	}
 
 	return nil

@@ -25,6 +25,11 @@ import (
 //
 // selectQuery must read from tableName aliased as tableAlias and scan into
 // TRow; toDto converts each scanned row to its public Dto shape.
+//
+// Unlike List, this does NOT hide soft-deleted rows and ignores
+// filter.IncludeDeletedRecords: the query builder exposes deleted_at /
+// deleted_by like any other column, so callers filter on them explicitly
+// (e.g. `"deleted_at" IS NULL`) when they want only live rows.
 func AdvancedQuery[TRow any, TDto any](
 	ctx context.Context,
 	db *sqlx.DB,
@@ -78,8 +83,9 @@ func AdvancedQuery[TRow any, TDto any](
 	}
 
 	//page of rows
-	listQuery, listArgs, err := db.BindNamed(fmt.Sprintf(`%s WHERE %s ORDER BY %s.%s %s LIMIT :limit OFFSET :offset`,
-		selectQuery, qualifiedWhereCondition, tableAlias, orderColumn, orderDirection), params)
+	// id is a tie-breaker so OFFSET paging is stable - see util.List.
+	listQuery, listArgs, err := db.BindNamed(fmt.Sprintf(`%s WHERE %s ORDER BY %s.%s %s, %s.id LIMIT :limit OFFSET :offset`,
+		selectQuery, qualifiedWhereCondition, tableAlias, orderColumn, orderDirection, tableAlias), params)
 	if err != nil {
 		return nil, fmt.Errorf("unable to bind %s query list. err: %w", tableName, err)
 	}
