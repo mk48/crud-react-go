@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/components/layout/page-header"
 import { samplesQueries } from "@/components/project/samples/_queries"
 import SamplesUpdateForm from "@/components/project/samples/form-update"
+import AdminOnly from "@/components/auth/admin-only"
 import { useApiClient } from "@/hooks/use-api-client"
 
 export const Route = createFileRoute("/_authenticated/samples/$id/edit")({
@@ -28,9 +29,11 @@ function RouteComponent() {
           { label: t("edit") },
         ]}
       />
-      <div className="p-4">
-        <SamplesUpdateForm id={id} />
-      </div>
+      <AdminOnly fallback="page">
+        <div className="p-4">
+          <SamplesUpdateForm id={id} />
+        </div>
+      </AdminOnly>
     </>
   )
 }

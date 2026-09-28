@@ -6,10 +6,16 @@ import type { SampleChildrenDto, SampleChildrenRequestDto } from "./types"
 
 const apiPath = "/api/v1/sample-children"
 
+// Every mutation refreshes all of this resource's cached queries (lists,
+// details, dropdown options - all keyed under apiPath) and audit histories.
+const mutationMeta = {
+  invalidates: [[apiPath], ["audit-history"]],
+}
+
 export const sampleChildrenQueries = {
   get: (apiClient: ApiClient, id: string, includeDeleted: boolean = false) =>
     queryOptions({
-      queryKey: ["sample-children", id, includeDeleted],
+      queryKey: [apiPath, "detail", id, includeDeleted],
       queryFn: async () => {
         const r = await apiClient.get<Result<SampleChildrenDto>>(
           `${apiPath}/${id}${toQueryString({ includeDeleted })}`
@@ -25,7 +31,7 @@ export const sampleChildrenQueries = {
     recordsPerPage: number = 50
   ) =>
     queryOptions({
-      queryKey: ["sample-children-list", searchText, pageIndex, recordsPerPage],
+      queryKey: [apiPath, "options", searchText, pageIndex, recordsPerPage],
       queryFn: async () => {
         const response = await apiClient.get<
           Result<PaginationResult<SampleChildrenDto>>
@@ -42,17 +48,20 @@ export const sampleChildrenMutations = {
     mutationFn: async (dataToServer: SampleChildrenRequestDto) => {
       return apiClient.post(apiPath, { ...dataToServer })
     },
+    meta: mutationMeta,
   }),
 
   update: (apiClient: ApiClient, id: string) => ({
     mutationFn: async (dataToServer: SampleChildrenRequestDto) => {
       return apiClient.put(`${apiPath}/${id}`, { ...dataToServer })
     },
+    meta: mutationMeta,
   }),
 
   delete: (apiClient: ApiClient, id: string) => ({
     mutationFn: async () => {
       return apiClient.delete(`${apiPath}/${id}`)
     },
+    meta: mutationMeta,
   }),
 }

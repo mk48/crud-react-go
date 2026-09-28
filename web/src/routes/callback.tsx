@@ -1,7 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
-import { completeSignin } from "@/lib/casdoor"
+import {
+  SIGNED_OUT_STATE,
+  completeSignin,
+  redirectToSignin,
+} from "@/lib/casdoor"
 
 export const Route = createFileRoute("/callback")({
   component: CallbackPage,
@@ -13,6 +18,30 @@ function getCodeAndState() {
 }
 
 function CallbackPage() {
+  const { code, state } = getCodeAndState()
+
+  // Casdoor sends the browser back here after signOutOfCasdoor() too.
+  if (!code && state === SIGNED_OUT_STATE) {
+    return <SignedOut />
+  }
+
+  return <CompleteSignin />
+}
+
+function SignedOut() {
+  return (
+    <div className="flex min-h-svh items-center justify-center">
+      <div className="flex flex-col items-center gap-4 text-sm">
+        <p className="text-muted-foreground">You have been signed out.</p>
+        <Button variant="outline" onClick={() => redirectToSignin("/")}>
+          Sign in
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function CompleteSignin() {
   const navigate = useNavigate()
   const { setToken } = useAuth()
   const [error, setError] = useState<string | null>(() => {
@@ -28,9 +57,9 @@ function CallbackPage() {
     const { code, state } = getCodeAndState()
     // error above already guards against either being missing
     completeSignin(code!, state!)
-      .then((token) => {
+      .then(({ token, returnTo }) => {
         setToken(token)
-        void navigate({ to: "/", replace: true })
+        void navigate({ href: returnTo, replace: true })
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Sign-in failed.")

@@ -21,7 +21,16 @@ import { tableFeaturesConfig } from "@/lib/table-features"
 import type { AppTableFeatures } from "@/lib/table-features"
 import { useQuery } from "@tanstack/react-query"
 import type { ColumnDef, RowData, SortingState } from "@tanstack/react-table"
-import { useTable } from "@tanstack/react-table"
+import { functionalUpdate, useTable } from "@tanstack/react-table"
+import { useNavigate, useSearch } from "@tanstack/react-router"
+import {
+  DEFAULT_PAGE_SIZE,
+  sortingFromParam,
+  sortingToApi,
+  sortingToParam,
+  validateListSearch,
+  type ListSearch,
+} from "@/lib/list-search"
 import { Loader, Search, X } from "lucide-react"
 import type { ReactNode } from "react"
 import { useState } from "react"
@@ -44,8 +53,7 @@ export interface ResourceListProps<TDto extends RowData> {
   headerActions?: ReactNode
 }
 
-const sortByParam = (sorting: SortingState): string =>
-  sorting.length >= 1 ? `${sorting[0].id}:${sorting[0].desc ? "desc" : "asc"}` : ""
+const DEFAULT_SORTING: SortingState = [{ id: "createdAt", desc: true }]
 
 // Generic search/advanced-query/sort/paginate list screen for any table that
 // follows the samples list/query/meta backend convention. Table-specific
@@ -54,22 +62,43 @@ const sortByParam = (sorting: SortingState): string =>
 export default function ResourceList<TDto extends RowData>({
   apiPath,
   columns,
-  defaultSorting = [{ id: "createdAt", desc: true }],
+  defaultSorting = DEFAULT_SORTING,
   searchPlaceholder,
   headerActions,
 }: ResourceListProps<TDto>) {
   const { t } = useTranslation()
   const apiClient = useApiClient()
-  const [sorting, setSorting] = useState<SortingState>(defaultSorting)
-  const [pagination, setPagination] = useState({
-    pageIndex: 0, // initial page index
-    pageSize: 10, // default page size
-  })
+  const navigate = useNavigate()
 
-  // default search
-  const [searchValue, setSearchValue] = useState("")
-  const [debouncedSearchValue, setDebouncedSearchValue] = useState("")
-  const [includeDeletedRecords, setIncludeDeletedFiles] = useState(false)
+  // Paging/sorting/search live in the URL (see lib/list-search.ts) - every
+  // list route declares validateSearch: validateListSearch.
+  const search = useSearch({ strict: false }) as ListSearch
+  const sorting = sortingFromParam(search.sort, defaultSorting)
+  const pagination = {
+    pageIndex: search.page ?? 0,
+    pageSize: search.size ?? DEFAULT_PAGE_SIZE,
+  }
+  const debouncedSearchValue = search.q ?? ""
+  const includeDeletedRecords = search.deleted ?? false
+
+  // `replace` for keystroke-driven changes, so Back isn't flooded with them.
+  const setSearch = (patch: ListSearch, replace = false) =>
+    void navigate({
+      to: ".",
+      search: (prev: Record<string, unknown>) =>
+        validateListSearch({ ...prev, ...patch }),
+      replace,
+    })
+
+  // The search box updates the URL (debounced) - but Back/Forward can also
+  // change `q`, so resync the box when it does.
+  const [searchValue, setSearchValue] = useState(debouncedSearchValue)
+  const [syncedSearchValue, setSyncedSearchValue] =
+    useState(debouncedSearchValue)
+  if (syncedSearchValue !== debouncedSearchValue) {
+    setSyncedSearchValue(debouncedSearchValue)
+    setSearchValue(debouncedSearchValue)
+  }
 
   // advanced query
   const [queryType, setQueryType] = useState("search") // search or advancedQuery
@@ -80,6 +109,7 @@ export default function ResourceList<TDto extends RowData>({
   const { data, isLoading, isError } = useQuery({
     queryKey: [
       apiPath,
+      "list",
       sorting,
       pagination.pageIndex,
       pagination.pageSize,
@@ -92,7 +122,7 @@ export default function ResourceList<TDto extends RowData>({
           pageIndex: pagination.pageIndex,
           recordsPerPage: pagination.pageSize,
           searchText: debouncedSearchValue,
-          sortBy: sortByParam(sorting),
+          sortBy: sortingToApi(sorting),
           includeDeleted: includeDeletedRecords,
         })}`
       )
@@ -109,7 +139,7 @@ export default function ResourceList<TDto extends RowData>({
   } = useQuery({
     queryKey: [
       apiPath,
-      "advanced-query",
+      "query",
       pagination.pageIndex,
       pagination.pageSize,
       whereCondition,
@@ -123,7 +153,7 @@ export default function ResourceList<TDto extends RowData>({
           recordsPerPage: pagination.pageSize,
           whereCondition: whereCondition,
           whereConditionParametersJson: whereConditionParameters,
-          sortBy: sortByParam(sorting),
+          sortBy: sortingToApi(sorting),
         })}`
       )
       return response.result
@@ -143,13 +173,23 @@ export default function ResourceList<TDto extends RowData>({
         : advancedQueryData?.pagination.totalResults,
 
     manualSorting: true,
-    onSortingChange: setSorting,
+    onSortingChange: (updater) =>
+      setSearch({
+        sort: sortingToParam(
+          functionalUpdate(updater, sorting),
+          defaultSorting
+        ),
+        page: 0,
+      }),
 
     // Client-side filtering was never registered as a feature - search is
     // handled entirely server-side via the queries above, not react-table's
     // column filtering - so there's no `manualFiltering` option in v9 to set.
 
-    onPaginationChange: setPagination, // update the pagination state when internal APIs mutate the pagination state
+    onPaginationChange: (updater) => {
+      const next = functionalUpdate(updater, pagination)
+      setSearch({ page: next.pageIndex, size: next.pageSize })
+    },
     state: {
       sorting,
       pagination,
@@ -157,8 +197,7 @@ export default function ResourceList<TDto extends RowData>({
   })
 
   const debounceSearch = useDebounceCallback((str: string) => {
-    setDebouncedSearchValue(str)
-    table.firstPage()
+    setSearch({ q: str, page: 0 }, true)
   }, 500)
 
   const searchInputHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,19 +207,26 @@ export default function ResourceList<TDto extends RowData>({
   }
 
   const clearSearchText = () => {
+    debounceSearch.cancel()
     setSearchValue("")
-    setDebouncedSearchValue("")
-    table.firstPage()
+    setSearch({ q: undefined, page: 0 })
   }
 
   const searchIncludeDeletedChange = (include: boolean) => {
-    setIncludeDeletedFiles(include)
-    table.firstPage()
+    setSearch({ deleted: include, page: 0 })
+  }
+
+  // Search and advanced query results are paged separately - start each
+  // from the first page instead of carrying the other's page over.
+  const onQueryTypeChange = (value: string) => {
+    setQueryType(value)
+    setSearch({ page: 0 })
   }
 
   const onAdvancedQuery = (where: string, parameters: string) => {
     setWhereCondition(where)
     setWhereConditionParameters(parameters)
+    setSearch({ page: 0 })
   }
 
   // ----------------- Render
@@ -189,7 +235,7 @@ export default function ResourceList<TDto extends RowData>({
       <Tabs
         defaultValue="search"
         value={queryType}
-        onValueChange={setQueryType}
+        onValueChange={onQueryTypeChange}
         className="mb-4"
       >
         <TabsList>
@@ -229,7 +275,6 @@ export default function ResourceList<TDto extends RowData>({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="includeDeleted"
-                  defaultChecked={false}
                   checked={includeDeletedRecords}
                   onCheckedChange={searchIncludeDeletedChange}
                 />

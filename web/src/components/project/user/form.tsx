@@ -23,6 +23,8 @@ type props = {
   defaultValues: UserFormSchema
   submitButtonText: string
   isBusy: boolean
+  // Editing yourself: the API refuses removing your own admin access.
+  isAdminLocked?: boolean
   onSubmit: (data: UserFormSchema) => void
 }
 
@@ -34,6 +36,7 @@ const UserForm: React.FC<props> = ({
   onSubmit,
   submitButtonText,
   isBusy,
+  isAdminLocked = false,
 }) => {
   const { t } = useTranslation()
 
@@ -90,9 +93,15 @@ const UserForm: React.FC<props> = ({
             <Checkbox
               id={field.name}
               checked={field.state.value}
+              disabled={isAdminLocked}
               onCheckedChange={(checked) => field.handleChange(!!checked)}
             />
             <FieldLabel htmlFor={field.name}>{t("user.is-admin")}</FieldLabel>
+            {isAdminLocked && (
+              <FieldDescription>
+                {t("user.is-admin-self-locked")}
+              </FieldDescription>
+            )}
             {!field.state.meta.isValid && (
               <FieldError errors={field.state.meta.errors} />
             )}

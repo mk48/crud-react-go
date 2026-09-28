@@ -12,6 +12,7 @@ import AuditHistoryDataLoad from "@/components/diff/history-diff-load-data"
 import DeleteResourceButton from "@/components/DeleteResourceButton"
 import LoadAndViewSamples from "@/components/project/samples/load-view"
 import { Button } from "@/components/ui/button"
+import AdminOnly from "@/components/auth/admin-only"
 import { useApiClient } from "@/hooks/use-api-client"
 
 export const Route = createFileRoute("/_authenticated/samples/$id/")({
@@ -36,23 +37,25 @@ function RouteComponent() {
         ]}
       />
       <div className="p-4">
-        <div className="mb-4 flex justify-between">
-          <Button
-            render={<Link to="/samples/$id/edit" params={{ id }} />}
-            nativeButton={false}
-          >
-            <Pencil className="mr-2 size-4" />
-            {t("edit")}
-          </Button>
+        <AdminOnly>
+          <div className="mb-4 flex justify-between">
+            <Button
+              render={<Link to="/samples/$id/edit" params={{ id }} />}
+              nativeButton={false}
+            >
+              <Pencil className="mr-2 size-4" />
+              {t("edit")}
+            </Button>
 
-          <DeleteResourceButton
-            mutation={samplesMutations.delete(apiClient, id)}
-            id={id}
-            name={data?.name || ""}
-            translationNamespace="samples"
-            onSuccess={() => navigate({ to: "/samples" })}
-          />
-        </div>
+            <DeleteResourceButton
+              mutation={samplesMutations.delete(apiClient, id)}
+              id={id}
+              name={data?.name || ""}
+              translationNamespace="samples"
+              onSuccess={() => navigate({ to: "/samples" })}
+            />
+          </div>
+        </AdminOnly>
 
         <LoadAndViewSamples id={id} />
         <AuditHistoryDataLoad id={id} />

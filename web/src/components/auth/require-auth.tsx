@@ -7,20 +7,30 @@ import { userQueries } from "@/components/project/user/_queries"
 import { Button } from "@/components/ui/button"
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { token, signOut } = useAuth()
+  const { token, authError, signOut, retrySignin } = useAuth()
   const apiClient = useApiClient()
 
   useEffect(() => {
-    if (!token) {
+    if (!token && !authError) {
       redirectToSignin()
     }
-  }, [token])
+  }, [token, authError])
 
   const meQuery = useQuery({
     ...userQueries.me(apiClient),
     enabled: !!token,
     retry: false,
   })
+
+  if (authError) {
+    return (
+      <CenteredMessage title="Couldn't sign you in" detail={authError}>
+        <Button className="w-fit" variant="outline" onClick={retrySignin}>
+          Try again
+        </Button>
+      </CenteredMessage>
+    )
+  }
 
   if (!token || meQuery.isPending) {
     return (
@@ -32,22 +42,42 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // 401s are handled globally (redirect to sign-in - see AuthProvider); this
+  // covers the rest, e.g. 403 for a deleted account or the API being down.
   if (meQuery.isError) {
     return (
-      <div className="flex min-h-svh items-center justify-center p-6">
-        <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-          <div>
-            <h1 className="font-medium">Couldn't verify your session</h1>
-            <p>Please sign in again.</p>
-          </div>
-
-          <Button className="w-fit" variant="outline" onClick={signOut}>
-            Sign out
-          </Button>
-        </div>
-      </div>
+      <CenteredMessage
+        title="Couldn't verify your session"
+        detail="Please sign in again."
+      >
+        <Button className="w-fit" variant="outline" onClick={signOut}>
+          Sign out
+        </Button>
+      </CenteredMessage>
     )
   }
 
   return <>{children}</>
+}
+
+function CenteredMessage({
+  title,
+  detail,
+  children,
+}: {
+  title: string
+  detail: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex min-h-svh items-center justify-center p-6">
+      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
+        <div>
+          <h1 className="font-medium">{title}</h1>
+          <p>{detail}</p>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
 }

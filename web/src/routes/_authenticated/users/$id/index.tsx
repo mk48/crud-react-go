@@ -9,6 +9,7 @@ import AuditHistoryDataLoad from "@/components/diff/history-diff-load-data"
 import DeleteResourceButton from "@/components/DeleteResourceButton"
 import LoadAndViewUser from "@/components/project/user/load-view"
 import { Button } from "@/components/ui/button"
+import AdminOnly from "@/components/auth/admin-only"
 import { useApiClient } from "@/hooks/use-api-client"
 
 export const Route = createFileRoute("/_authenticated/users/$id/")({
@@ -35,25 +36,27 @@ function RouteComponent() {
         ]}
       />
       <div className="p-4">
-        <div className="mb-4 flex justify-between">
-          <Button
-            render={<Link to="/users/$id/edit" params={{ id }} />}
-            nativeButton={false}
-          >
-            <Pencil className="mr-2 size-4" />
-            {t("edit")}
-          </Button>
+        <AdminOnly>
+          <div className="mb-4 flex justify-between">
+            <Button
+              render={<Link to="/users/$id/edit" params={{ id }} />}
+              nativeButton={false}
+            >
+              <Pencil className="mr-2 size-4" />
+              {t("edit")}
+            </Button>
 
-          {me && me.id !== id && (
-            <DeleteResourceButton
-              mutation={userMutations.delete(apiClient, id)}
-              id={id}
-              name={data?.name || data?.email || ""}
-              translationNamespace="user"
-              onSuccess={() => navigate({ to: "/users" })}
-            />
-          )}
-        </div>
+            {me && me.id !== id && (
+              <DeleteResourceButton
+                mutation={userMutations.delete(apiClient, id)}
+                id={id}
+                name={data?.name || data?.email || ""}
+                translationNamespace="user"
+                onSuccess={() => navigate({ to: "/users" })}
+              />
+            )}
+          </div>
+        </AdminOnly>
 
         <LoadAndViewUser id={id} />
         <AuditHistoryDataLoad id={id} />

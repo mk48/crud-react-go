@@ -1,3 +1,4 @@
+import AdminOnly from "@/components/auth/admin-only"
 import ResourceList from "@/components/ResourceList"
 import { Button } from "@/components/ui/button"
 import { Link } from "@tanstack/react-router"
@@ -15,14 +16,16 @@ export default function SamplesList() {
       columns={columns}
       searchPlaceholder={t("samples.search-by-name")}
       headerActions={
-        <Button
-          className="ml-2"
-          render={<Link to="/samples/new" />}
-          nativeButton={false}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {t("samples.create-new-samples")}
-        </Button>
+        <AdminOnly>
+          <Button
+            className="ml-2"
+            render={<Link to="/samples/new" />}
+            nativeButton={false}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {t("samples.create-new-samples")}
+          </Button>
+        </AdminOnly>
       }
     />
   )

@@ -1,3 +1,4 @@
+import AdminOnly from "@/components/auth/admin-only"
 import {
   Tooltip,
   TooltipContent,
@@ -59,14 +60,16 @@ export const columns = [
       <div className="flex justify-end gap-x-8">
         {/* Edit is not allowed for deleted rows */}
         {row.original.deletedBy == null && (
-          <Tooltip>
-            <TooltipTrigger>
-              <Link to={"/users/$id/edit"} params={{ id: row.original.id }}>
-                <Pencil className="size-4" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent>{i18next.t("edit")}</TooltipContent>
-          </Tooltip>
+          <AdminOnly>
+            <Tooltip>
+              <TooltipTrigger>
+                <Link to={"/users/$id/edit"} params={{ id: row.original.id }}>
+                  <Pencil className="size-4" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>{i18next.t("edit")}</TooltipContent>
+            </Tooltip>
+          </AdminOnly>
         )}
         <Tooltip>
           <TooltipTrigger>

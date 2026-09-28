@@ -16,10 +16,17 @@ import { apiFetch } from "@/lib/api-client"
 import type { Result } from "@/lib/dto"
 
 const STATE_STORAGE_KEY = "kfamily.casdoor.state"
+const RETURN_TO_STORAGE_KEY = "kfamily.casdoor.returnTo"
+
+// `state` Casdoor echoes back to /callback after signOutOfCasdoor(), so the
+// callback page can tell a sign-out apart from a sign-in.
+export const SIGNED_OUT_STATE = "signed-out"
 
 function requireEnv(name: string, value: string | undefined): string {
   if (!value) {
-    throw new Error(`${name} is not set. Add it to your .env file (see .env.example).`)
+    throw new Error(
+      `${name} is not set. Add it to your .env file (see .env.example).`
+    )
   }
   return value
 }
@@ -38,14 +45,23 @@ function getCasdoorClientId(): string {
   )
 }
 
+// Also used as the post-logout redirect: it's already registered in the
+// Casdoor application's Redirect URLs, which Casdoor checks both for.
 function getRedirectUri(): string {
   return `${window.location.origin}/callback`
 }
 
-/** Redirects the browser to Casdoor's sign-in page. */
-export function redirectToSignin() {
+/**
+ * Redirects the browser to Casdoor's sign-in page. `returnTo` (a path
+ * within this app, defaulting to the current one) is where /callback sends
+ * the user once signed in.
+ */
+export function redirectToSignin(
+  returnTo: string = window.location.pathname + window.location.search
+) {
   const state = crypto.randomUUID()
   sessionStorage.setItem(STATE_STORAGE_KEY, state)
+  sessionStorage.setItem(RETURN_TO_STORAGE_KEY, returnTo)
 
   const url = new URL("/login/oauth/authorize", getCasdoorEndpoint())
   url.searchParams.set("client_id", getCasdoorClientId())
@@ -53,6 +69,20 @@ export function redirectToSignin() {
   url.searchParams.set("redirect_uri", getRedirectUri())
   url.searchParams.set("scope", "profile email")
   url.searchParams.set("state", state)
+
+  window.location.assign(url.toString())
+}
+
+/**
+ * Ends the Casdoor session too (not just this app's token), so the next
+ * sign-in asks for credentials again. Casdoor revokes `accessToken` and
+ * redirects back to /callback with state=SIGNED_OUT_STATE.
+ */
+export function signOutOfCasdoor(accessToken: string) {
+  const url = new URL("/api/logout", getCasdoorEndpoint())
+  url.searchParams.set("id_token_hint", accessToken)
+  url.searchParams.set("post_logout_redirect_uri", getRedirectUri())
+  url.searchParams.set("state", SIGNED_OUT_STATE)
 
   window.location.assign(url.toString())
 }
@@ -67,14 +97,17 @@ export interface SigninResult {
 /**
  * Completes the sign-in flow started by redirectToSignin(): checks the
  * returned `state` against the one we generated (CSRF protection), then
- * exchanges `code` for an access token via the API server.
+ * exchanges `code` for an access token via the API server. Returns the
+ * token and the in-app path to go back to.
  */
 export async function completeSignin(
   code: string,
   state: string
-): Promise<string> {
+): Promise<{ token: string; returnTo: string }> {
   const expectedState = sessionStorage.getItem(STATE_STORAGE_KEY)
+  const returnTo = sessionStorage.getItem(RETURN_TO_STORAGE_KEY)
   sessionStorage.removeItem(STATE_STORAGE_KEY)
+  sessionStorage.removeItem(RETURN_TO_STORAGE_KEY)
   if (!expectedState || expectedState !== state) {
     throw new Error("Sign-in state mismatch. Please try signing in again.")
   }
@@ -88,5 +121,10 @@ export async function completeSignin(
     throw new Error(response.message || "Sign-in failed.")
   }
 
-  return response.result.accessToken
+  return {
+    token: response.result.accessToken,
+    // Only same-app paths - never an absolute URL (open redirect).
+    returnTo:
+      returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/",
+  }
 }

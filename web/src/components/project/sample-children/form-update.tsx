@@ -1,7 +1,7 @@
 import MutationFeedback from "@/components/MutationFeedback"
 import QueryBoundary from "@/components/QueryBoundary"
 import { useApiClient } from "@/hooks/use-api-client"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { sampleChildrenMutations, sampleChildrenQueries } from "./_queries"
@@ -17,14 +17,12 @@ interface props {
 const SampleChildrenUpdateForm: React.FC<props> = ({ id, onUpdated }) => {
   const { t } = useTranslation()
   const apiClient = useApiClient()
-  const queryClient = useQueryClient()
 
   // ------------------------- Mutations  -----------------------------------
   const mutation = useMutation({
     ...sampleChildrenMutations.update(apiClient, id),
     onSuccess: () => {
       toast.success(t("update-success"))
-      queryClient.invalidateQueries({ queryKey: ["sample-children", id] })
       onUpdated?.()
     },
   })

@@ -15,6 +15,7 @@ import {
 import type { RowData, Table } from "@tanstack/react-table"
 import { useTranslation } from "react-i18next"
 import type { AppTableFeatures } from "@/lib/table-features"
+import { PAGE_SIZES } from "@/lib/list-search"
 
 interface props<TData extends RowData> {
   table: Table<AppTableFeatures, TData>
@@ -44,10 +45,12 @@ function Pagination<TData extends RowData>({ table }: props<TData>) {
             }
           >
             <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue placeholder={table.store.state.pagination.pageSize} />
+              <SelectValue
+                placeholder={table.store.state.pagination.pageSize}
+              />
             </SelectTrigger>
             <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map((pageSize) => (
+              {PAGE_SIZES.map((pageSize) => (
                 <SelectItem key={pageSize} value={pageSize.toString()}>
                   {pageSize}
                 </SelectItem>
@@ -112,4 +115,3 @@ function Pagination<TData extends RowData>({ table }: props<TData>) {
 }
 
 export default Pagination
-

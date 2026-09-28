@@ -1,7 +1,8 @@
 import MutationFeedback from "@/components/MutationFeedback"
 import QueryBoundary from "@/components/QueryBoundary"
 import { useApiClient } from "@/hooks/use-api-client"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
+import { useCurrentUser } from "@/hooks/use-current-user"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { userMutations, userQueries } from "./_queries"
@@ -17,16 +18,14 @@ interface props {
 const UserUpdateForm: React.FC<props> = ({ id, onUpdated }) => {
   const { t } = useTranslation()
   const apiClient = useApiClient()
-  const queryClient = useQueryClient()
+  // The API refuses removing your own admin access - don't offer it.
+  const isSelf = useCurrentUser()?.id === id
 
   // ------------------------- Mutations  -----------------------------------
   const mutation = useMutation({
     ...userMutations.update(apiClient, id),
     onSuccess: () => {
       toast.success(t("update-success"))
-      queryClient.invalidateQueries({ queryKey: ["users", id] })
-      // Editing your own record changes the name shown in the sidebar.
-      queryClient.invalidateQueries({ queryKey: ["users-me"] })
       onUpdated?.()
     },
   })
@@ -52,6 +51,7 @@ const UserUpdateForm: React.FC<props> = ({ id, onUpdated }) => {
             submitButtonText={t("update")}
             onSubmit={onSubmit}
             isBusy={mutation.isPending}
+            isAdminLocked={isSelf}
           />
           <MutationFeedback
             isSuccess={mutation.isSuccess}

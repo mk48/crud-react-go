@@ -2,10 +2,12 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 
 import { PageHeader } from "@/components/layout/page-header"
+import { validateListSearch } from "@/lib/list-search"
 import SamplesList from "@/components/project/samples/list"
 
 export const Route = createFileRoute("/_authenticated/samples/")({
   component: RouteComponent,
+  validateSearch: validateListSearch,
 })
 
 function RouteComponent() {

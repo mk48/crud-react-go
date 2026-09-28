@@ -2,6 +2,10 @@
   "app": {
     "title": "KFamily"
   },
+  "admin-only": {
+    "title": "Admin access required",
+    "description": "Only administrators can create, edit or delete records."
+  },
   "cancel": "Cancel",
   "continue": "Continue",
   "error": "Error",
@@ -58,6 +62,7 @@
     "name-placeholder": "Name",
     "email": "Email",
     "is-admin": "Admin",
+    "is-admin-self-locked": "You can't remove your own admin access.",
     "search-by-name-or-email": "Search by name or email",
     "delete-confirm-title": "Deleting user: {{Name}}",
     "deleted-successfully": "User: {{Name}} deleted successfully",

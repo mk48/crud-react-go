@@ -7,10 +7,16 @@ import { MINUTE } from "@/lib/constants"
 
 const apiPath = "/api/v1/users"
 
+// Every mutation refreshes all of this resource's cached queries (lists,
+// details, dropdown options - all keyed under apiPath) and audit histories.
+const mutationMeta = {
+  invalidates: [[apiPath], ["audit-history"]],
+}
+
 export const userQueries = {
   me: (apiClient: ApiClient) =>
     queryOptions({
-      queryKey: ["users-me"],
+      queryKey: [apiPath, "me"],
       queryFn: async () => {
         const r = await apiClient.get<Result<UserDto>>(`${apiPath}/me`)
         return r.result
@@ -19,7 +25,7 @@ export const userQueries = {
 
   get: (apiClient: ApiClient, id: string, includeDeleted: boolean = false) =>
     queryOptions({
-      queryKey: ["users", id, includeDeleted],
+      queryKey: [apiPath, "detail", id, includeDeleted],
       queryFn: async () => {
         const r = await apiClient.get<Result<UserDto>>(
           `${apiPath}/${id}${toQueryString({ includeDeleted })}`
@@ -36,7 +42,7 @@ export const userQueries = {
     recordsPerPage: number = 50
   ) =>
     queryOptions({
-      queryKey: ["users-list", searchText, pageIndex, recordsPerPage],
+      queryKey: [apiPath, "options", searchText, pageIndex, recordsPerPage],
       queryFn: async () => {
         const response = await apiClient.get<Result<PaginationResult<UserDto>>>(
           `${apiPath}${toQueryString({ searchText, pageIndex, recordsPerPage })}`
@@ -47,21 +53,17 @@ export const userQueries = {
 }
 
 export const userMutations = {
-  create: (apiClient: ApiClient) => ({
-    mutationFn: async (dataToServer: UserRequestDto) => {
-      return apiClient.post(apiPath, { ...dataToServer })
-    },
-  }),
-
   update: (apiClient: ApiClient, id: string) => ({
     mutationFn: async (dataToServer: UserRequestDto) => {
       return apiClient.put(`${apiPath}/${id}`, { ...dataToServer })
     },
+    meta: mutationMeta,
   }),
 
   delete: (apiClient: ApiClient, id: string) => ({
     mutationFn: async () => {
       return apiClient.delete(`${apiPath}/${id}`)
     },
+    meta: mutationMeta,
   }),
 }

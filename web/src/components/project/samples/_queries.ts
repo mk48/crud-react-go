@@ -6,10 +6,21 @@ import type { SamplesDto, SamplesRequestDto } from "./types"
 
 const apiPath = "/api/v1/samples"
 
+// Every mutation refreshes all of this resource's cached queries (lists,
+// details, dropdown options - all keyed under apiPath) and audit histories.
+const mutationMeta = {
+  invalidates: [
+    [apiPath],
+    ["audit-history"],
+    // sample children show their parent sample's name
+    ["/api/v1/sample-children"],
+  ],
+}
+
 export const samplesQueries = {
   get: (apiClient: ApiClient, id: string, includeDeleted: boolean = false) =>
     queryOptions({
-      queryKey: ["samples", id, includeDeleted],
+      queryKey: [apiPath, "detail", id, includeDeleted],
       queryFn: async () => {
         const r = await apiClient.get<Result<SamplesDto>>(
           `${apiPath}/${id}${toQueryString({ includeDeleted })}`
@@ -25,11 +36,13 @@ export const samplesQueries = {
     recordsPerPage: number = 50
   ) =>
     queryOptions({
-      queryKey: ["samples-list", searchText, pageIndex, recordsPerPage],
+      queryKey: [apiPath, "options", searchText, pageIndex, recordsPerPage],
       queryFn: async () => {
         const response = await apiClient.get<
           Result<PaginationResult<SamplesDto>>
-        >(`${apiPath}${toQueryString({ searchText, pageIndex, recordsPerPage })}`)
+        >(
+          `${apiPath}${toQueryString({ searchText, pageIndex, recordsPerPage })}`
+        )
         return response.result
       },
     }),
@@ -40,17 +53,20 @@ export const samplesMutations = {
     mutationFn: async (dataToServer: SamplesRequestDto) => {
       return apiClient.post(apiPath, { ...dataToServer })
     },
+    meta: mutationMeta,
   }),
 
   update: (apiClient: ApiClient, id: string) => ({
     mutationFn: async (dataToServer: SamplesRequestDto) => {
       return apiClient.put(`${apiPath}/${id}`, { ...dataToServer })
     },
+    meta: mutationMeta,
   }),
 
   delete: (apiClient: ApiClient, id: string) => ({
     mutationFn: async () => {
       return apiClient.delete(`${apiPath}/${id}`)
     },
+    meta: mutationMeta,
   }),
 }

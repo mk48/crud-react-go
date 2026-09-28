@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import { PageHeader } from "@/components/layout/page-header"
 import { userQueries } from "@/components/project/user/_queries"
 import UserUpdateForm from "@/components/project/user/form-update"
+import AdminOnly from "@/components/auth/admin-only"
 import { useApiClient } from "@/hooks/use-api-client"
 
 export const Route = createFileRoute("/_authenticated/users/$id/edit")({
@@ -28,9 +29,11 @@ function RouteComponent() {
           { label: t("edit") },
         ]}
       />
-      <div className="p-4">
-        <UserUpdateForm id={id} />
-      </div>
+      <AdminOnly fallback="page">
+        <div className="p-4">
+          <UserUpdateForm id={id} />
+        </div>
+      </AdminOnly>
     </>
   )
 }
