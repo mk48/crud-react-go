@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"kfamily/internal/dto"
 	"kfamily/internal/util"
 	"net/http"
 	"strconv"
@@ -21,16 +22,16 @@ func NewHandler(s *Service) *Handler {
 
 //------------------------------------------------------------------------------
 
-// UserGetOne godoc
-// @Security ApiKeyAuth
-// @Tags         User
+// GetOne godoc
 // @Summary      Get one user
-// @Accept       json
+// @Tags         Users
+// @Security     ApiKeyAuth
 // @Produce      json
-// @Param        id   					path      string  true  	"User id"
-// @Param        includeDeleted 	query      bool  	false  	"included deleted record or omit"
-// @Success      200  {object}  util.HttpResult{Result=user.Dto}
-// @Router       /api/users/{id} [get]
+// @Param        id              path   string  true   "user id (UUID)"
+// @Param        includeDeleted  query  bool    false  "Return it even if soft-deleted"
+// @Success      200  {object}  util.HttpResult{result=user.Dto}
+// @Failure      400,401,404,500  {object}  util.HttpResult
+// @Router       /api/v1/users/{id} [get]
 func (h *Handler) GetOne(c *echo.Context) error {
 	id, err := util.ParseUUIDParam(c, "id")
 	if err != nil {
@@ -49,14 +50,15 @@ func (h *Handler) GetOne(c *echo.Context) error {
 	return c.JSON(http.StatusOK, util.HttpData(row))
 }
 
-// UserMe godoc
-// @Security ApiKeyAuth
-// @Tags         User
+// Me godoc
 // @Summary      Get the signed-in user
-// @Description  Returns the caller's own user record (including isAdmin), so a frontend can tell whether the signed-in account has admin access
+// @Tags         Users
+// @Security     ApiKeyAuth
 // @Produce      json
-// @Success      200  {object}  util.HttpResult{Result=user.Dto}
-// @Router       /api/users/me [get]
+// @Description  The caller's own user record (including isAdmin).
+// @Success      200  {object}  util.HttpResult{result=user.Dto}
+// @Failure      401,500  {object}  util.HttpResult
+// @Router       /api/v1/users/me [get]
 func (h *Handler) Me(c *echo.Context) error {
 	currentUser := util.CurrentUser(c)
 
@@ -68,23 +70,23 @@ func (h *Handler) Me(c *echo.Context) error {
 	return c.JSON(http.StatusOK, util.HttpData(row))
 }
 
-// UserList godoc
-// @Security ApiKeyAuth
-// @Tags         User
-// @Summary      List User
-// @Description  get User list with pagination
-// @Accept       json
+// List godoc
+// @Summary      List users
+// @Tags         Users
+// @Security     ApiKeyAuth
 // @Produce      json
-// @Param        results_per_page   			query      int  	true  	"Results/page"
-// @Param        pageindex 						query      int  	true  	"page index (starts 0)"
-// @Param        sort   						query      string  	false  	"sort column, ex: name:asc"
-// @Param        search   						query      string  	false  	"search value"
-// @Param        includeDeleted 		query      bool  	false  	"included deleted record or omit"
-// @Success      200  {object}  util.HttpResult{Result=dto.PaginationResponse[user.Dto]}
-// @Router       /api/users [get]
+// @Description  One page of users, optionally narrowed by a free-text search.
+// @Param        pageIndex       query  int     false  "Page index, from 0"  default(0)
+// @Param        recordsPerPage  query  int     false  "Rows per page (1-150)"  default(10)
+// @Param        sortBy          query  string  false  "Sort as <column>:asc|desc, e.g. createdAt:desc"
+// @Param        searchText      query  string  false  "Free-text search"
+// @Param        includeDeleted  query  bool    false  "Include soft-deleted rows"
+// @Success      200  {object}  util.HttpResult{result=dto.PaginationResponse[user.Dto]}
+// @Failure      400,401,500  {object}  util.HttpResult
+// @Router       /api/v1/users [get]
 func (h *Handler) List(c *echo.Context) error {
 	// ?results_per_page=10 & page=1 & sort=name:asc & search=kumaran & includeDeleted=false
-	var filters = util.FiltersFromContext(c)
+	var filters dto.Filters = util.FiltersFromContext(c)
 
 	result, err := h.service.List(c.Request().Context(), filters)
 	if err != nil {
@@ -94,14 +96,15 @@ func (h *Handler) List(c *echo.Context) error {
 	return c.JSON(http.StatusOK, util.HttpData(result))
 }
 
-// UserMetadata godoc
-// @Security ApiKeyAuth
-// @Tags         User
-// @Summary      Get user table metadata
-// @Description  columns and their data types, so a frontend can discover valid sort/filter column names
+// Metadata godoc
+// @Summary      Users table columns
+// @Tags         Users
+// @Security     ApiKeyAuth
 // @Produce      json
-// @Success      200  {object}  util.HttpResult{Result=[]dto.ColumnMeta}
-// @Router       /api/users/meta [get]
+// @Description  Column names and Postgres data types - valid sort/filter columns for the query builder.
+// @Success      200  {object}  util.HttpResult{result=[]dto.ColumnMeta}
+// @Failure      401,500  {object}  util.HttpResult
+// @Router       /api/v1/users/meta [get]
 func (h *Handler) Metadata(c *echo.Context) error {
 	columns, err := h.service.Metadata(c.Request().Context())
 	if err != nil {
@@ -116,20 +119,20 @@ type QueryInputDto struct {
 	WhereConditionParametersJson string `query:"whereConditionParametersJson"`
 }
 
-// UserQuery godoc
-// @Security ApiKeyAuth
-// @Tags         User
-// @Summary      Advanced query for User
-// @Description  list User rows matching a dynamic WHERE clause built by the frontend's react-querybuilder (see AdvancedQueryBuilder.tsx): a parameterized SQL fragment referencing quoted column names and :pN placeholders, plus its parameter values as a JSON array in placeholder order
-// @Accept       json
+// Query godoc
+// @Summary      Advanced query for users
+// @Tags         Users
+// @Security     ApiKeyAuth
 // @Produce      json
-// @Param        results_per_page   			query      int  	true  	"Results/page"
-// @Param        pageindex 						query      int  	true  	"page index (starts 0)"
-// @Param        sort   						query      string  	false  	"sort column, ex: name:asc"
-// @Param        whereCondition   				query      string  	true  	`parameterized SQL where clause, ex: ("name" = :p1)`
-// @Param        whereConditionParametersJson  	query      string  	true  	"JSON array of parameter values, in :p1, :p2... order"
-// @Success      200  {object}  util.HttpResult{Result=dto.PaginationResponse[user.Dto]}
-// @Router       /api/users/query [get]
+// @Description  Rows matching a parameterized SQL WHERE fragment from the query builder: quoted column names and :p1, :p2... placeholders, validated server-side. Includes soft-deleted rows (filter on deleted_at to exclude them).
+// @Param        pageIndex       query  int     false  "Page index, from 0"  default(0)
+// @Param        recordsPerPage  query  int     false  "Rows per page (1-150)"  default(10)
+// @Param        sortBy          query  string  false  "Sort as <column>:asc|desc, e.g. createdAt:desc"
+// @Param        whereCondition                query  string  true   "WHERE fragment with double-quoted column names and :pN placeholders"
+// @Param        whereConditionParametersJson  query  string  false  "JSON array of the :p1, :p2... values, in order"
+// @Success      200  {object}  util.HttpResult{result=dto.PaginationResponse[user.Dto]}
+// @Failure      400,401,500  {object}  util.HttpResult
+// @Router       /api/v1/users/query [get]
 func (h *Handler) Query(c *echo.Context) error {
 	var input QueryInputDto
 	if err := c.Bind(&input); err != nil {
@@ -147,7 +150,7 @@ func (h *Handler) Query(c *echo.Context) error {
 		}
 	}
 
-	var filters = util.FiltersFromContext(c)
+	var filters dto.Filters = util.FiltersFromContext(c)
 
 	result, err := h.service.Query(c.Request().Context(), filters, input.WhereCondition, whereConditionParams)
 	if err != nil {
@@ -157,17 +160,18 @@ func (h *Handler) Query(c *echo.Context) error {
 	return c.JSON(http.StatusOK, util.HttpData(result))
 }
 
-// UpdateUser godoc
-// @Security ApiKeyAuth
-// @Tags        User
-// @Summary     Update user
-// @Description Only name and isAdmin can be changed - sub/email are set once at first sign-in
-// @Accept      json
-// @Produce     json
-// @Param       id   		path    string  			true 	"User Id"
-// @Param 		request 	body	user.UpdateInputDto 	true 	"Update User"
-// @Success     200  {object}  util.HttpResult{Result=user.Dto}
-// @Router      /api/users/{id} [put]
+// Update godoc
+// @Summary      Update a user
+// @Tags         Users
+// @Security     ApiKeyAuth
+// @Produce      json
+// @Description  Admin only. Soft-deleted rows can't be updated (404). Omit isAdmin to leave it unchanged; removing the last admin is refused (409).
+// @Accept       json
+// @Param        id       path  string  true  "user id (UUID)"
+// @Param        request  body  user.UpdateInputDto  true  "New values"
+// @Success      200  {object}  util.HttpResult
+// @Failure      400,401,403,404,409,500  {object}  util.HttpResult
+// @Router       /api/v1/users/{id} [put]
 func (h *Handler) Update(c *echo.Context) error {
 	id, err := util.ParseUUIDParam(c, "id")
 	if err != nil {
@@ -202,14 +206,16 @@ func (h *Handler) Update(c *echo.Context) error {
 	return c.JSON(http.StatusOK, util.HttpSuccessStatus())
 }
 
-// UserDelete godoc
-// @Security ApiKeyAuth
-// @Tags        User
-// @Summary     Delete user
-// @Accept      json
-// @Produce     json
-// @Param       id   		path    string  			true 	"User Id"
-// @Router      /api/users/{id} [delete]
+// Delete godoc
+// @Summary      Delete a user
+// @Tags         Users
+// @Security     ApiKeyAuth
+// @Produce      json
+// @Description  Admin only. Soft delete - the row and its audit history are kept. You can't delete yourself or the last admin (409).
+// @Param        id  path  string  true  "user id (UUID)"
+// @Success      200  {object}  util.HttpResult
+// @Failure      400,401,403,404,409,500  {object}  util.HttpResult
+// @Router       /api/v1/users/{id} [delete]
 func (h *Handler) Delete(c *echo.Context) error {
 	id, err := util.ParseUUIDParam(c, "id")
 	if err != nil {

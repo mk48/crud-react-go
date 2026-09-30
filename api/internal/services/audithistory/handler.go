@@ -19,14 +19,15 @@ func NewHandler(s *Service) *Handler {
 //------------------------------------------------------------------------------
 
 // AuditHistoryList godoc
-// @Security ApiKeyAuth
-// @Tags         AuditHistory
+// @Security     ApiKeyAuth
+// @Tags         Audit history
 // @Summary      List audit history for a record
-// @Description  every audit_history row recorded for id (a source table's primary key), most recent first
+// @Description  Every change recorded for a record (any table's primary key), newest first. Each entry holds the full row right after the change.
 // @Accept       json
 // @Produce      json
 // @Param        id   path      string  true  "Source record id (primary key)"
-// @Success      200  {object}  util.HttpResult{Result=[]audithistory.Dto}
+// @Success      200  {object}  util.HttpResult{result=[]audithistory.Dto}
+// @Failure      400,401,500  {object}  util.HttpResult
 // @Router       /api/v1/audit-history/{id} [get]
 func (h *Handler) List(c *echo.Context) error {
 	sourceId, err := uuid.Parse(c.Param("id"))

@@ -19,6 +19,16 @@ func NewHandler() *Handler {
 // redirecting the user to Casdoor's sign-in page) for a Casdoor access
 // token. The exchange needs the application's client secret, so it has to
 // happen here rather than in the browser.
+//
+// @Summary      Sign in with a Casdoor authorization code
+// @Description  Rate limited per client IP.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body  auth.SigninInputDto  true  "Code and state from Casdoor's redirect"
+// @Success      200  {object}  util.HttpResult{result=auth.TokenDto}
+// @Failure      400,401,429  {object}  util.HttpResult
+// @Router       /api/v1/auth/signin [post]
 func (h *Handler) Signin(c *echo.Context) error {
 	var input SigninInputDto
 	if err := c.Bind(&input); err != nil {

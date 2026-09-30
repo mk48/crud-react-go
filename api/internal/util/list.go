@@ -16,7 +16,7 @@ import (
 // rows unless filter.IncludeDeletedRecords is set, and optionally matching a
 // free-text search across searchColumns (pass nil/empty if the table has no
 // search box). It's the shared implementation behind every table's plain
-// list endpoint (see kommune.Service.List) - only the table name, select
+// list endpoint (see sample.Service.List) - only the table name, select
 // query, searchable columns and row/Dto types differ between tables.
 //
 // selectQuery must read from tableName aliased as tableAlias and scan into

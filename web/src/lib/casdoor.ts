@@ -14,6 +14,7 @@
  */
 import { apiFetch } from "@/lib/api-client"
 import type { Result } from "@/lib/dto"
+import { runtimeConfig } from "@/lib/runtime-config"
 
 const STATE_STORAGE_KEY = "kfamily.casdoor.state"
 const RETURN_TO_STORAGE_KEY = "kfamily.casdoor.returnTo"
@@ -22,27 +23,12 @@ const RETURN_TO_STORAGE_KEY = "kfamily.casdoor.returnTo"
 // callback page can tell a sign-out apart from a sign-in.
 export const SIGNED_OUT_STATE = "signed-out"
 
-function requireEnv(name: string, value: string | undefined): string {
-  if (!value) {
-    throw new Error(
-      `${name} is not set. Add it to your .env file (see .env.example).`
-    )
-  }
-  return value
-}
-
 function getCasdoorEndpoint(): string {
-  return requireEnv(
-    "VITE_CASDOOR_ENDPOINT",
-    import.meta.env.VITE_CASDOOR_ENDPOINT
-  )
+  return runtimeConfig().casdoorEndpoint
 }
 
 function getCasdoorClientId(): string {
-  return requireEnv(
-    "VITE_CASDOOR_CLIENT_ID",
-    import.meta.env.VITE_CASDOOR_CLIENT_ID
-  )
+  return runtimeConfig().casdoorClientId
 }
 
 // Also used as the post-logout redirect: it's already registered in the

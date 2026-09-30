@@ -30,7 +30,7 @@ func (mw *Middleware) GetUserByEmail(ctx context.Context, email string) (*model.
 	return &dest, nil
 }
 
-// GetUserBySub looks up a user by their Logto subject (sub) claim, which is the
+// GetUserBySub looks up a user by their Casdoor subject (sub) claim, which is the
 // stable, immutable identifier for a user - unlike email, which a user can change.
 func (mw *Middleware) GetUserBySub(ctx context.Context, sub string) (*model.User, error) {
 	var dest model.User
@@ -81,7 +81,7 @@ func (mw *Middleware) CreateUser(
 	}, nil
 }
 
-// UpdateUserSub reassigns an existing local user's Logto sub. Logto can issue
+// UpdateUserSub reassigns an existing local user's Casdoor sub. Casdoor can issue
 // a different sub for the same email - e.g. signing in via a different
 // method, or from a new browser/device before account linking has run - so a
 // fresh sign-in can't always be matched to a local user by sub alone. See

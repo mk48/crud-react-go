@@ -4,13 +4,13 @@ React + TypeScript + Vite + shadcn/ui frontend for the KFamily family-tree
 app. Auth is handled via Casdoor (see `src/lib/casdoor.ts` and
 `src/lib/auth-context.tsx`); the API lives in `../api`.
 
-Copy `.env.example` to `.env` and fill in:
+No configuration needed: the app talks to the API on its own origin (in dev
+`pnpm dev` proxies `/api` and `/config.js` to `http://localhost:8080`, or
+`KFAMILY_API_URL`), and reads its Casdoor settings at runtime from the API's
+`/config.js` (see `src/lib/runtime-config.ts`).
 
-| Variable | Purpose |
-|---|---|
-| `VITE_API_BASE_URL` | Base URL of the API server |
-| `VITE_CASDOOR_ENDPOINT` | Casdoor server URL |
-| `VITE_CASDOOR_CLIENT_ID` | Casdoor application client ID (public - the secret stays in the API's env) |
+`pnpm build` writes straight into `../api/internal/webui/dist`, where the API
+embeds it (`go build -tags embedui`) - see the root README.
 
 Only one page is wired up so far - `/samples`, a placeholder CRUD resource
 for exercising the auth/API plumbing end to end. Replace it once the real

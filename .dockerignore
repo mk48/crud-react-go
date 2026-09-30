@@ -1,0 +1,16 @@
+# Only what the Dockerfile needs: sources and lockfiles.
+.git
+**/.vscode
+**/.env
+**/.env.*
+!**/.env.example
+**/*.md
+Dockerfile
+.dockerignore
+dev.ps1
+
+# Rebuilt inside the image
+**/node_modules
+web/dist
+api/internal/webui/dist
+api/tmp

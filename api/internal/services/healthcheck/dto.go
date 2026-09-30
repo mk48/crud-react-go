@@ -1,6 +1,6 @@
 package healthcheck
 
 type HealthCheckResponse struct {
-	Environment string `json:"environment"`
-	Version     string `json:"version"`
+	Status  string `json:"status"`
+	Version string `json:"version"`
 }

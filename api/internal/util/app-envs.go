@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
@@ -10,7 +11,15 @@ import (
 
 type AppENV struct {
 	Env              string `env:"ENV"`
+	Port             int    `env:"PORT" envDefault:"8080"`
 	ConnectionString string `env:"CONNECTION_STRING,notEmpty"`
+
+	// Postgres connection pool. Keep DBMaxOpenConns x replicas below the
+	// server's max_connections.
+	DBMaxOpenConns    int           `env:"DB_MAX_OPEN_CONNS" envDefault:"20"`
+	DBMaxIdleConns    int           `env:"DB_MAX_IDLE_CONNS" envDefault:"5"`
+	DBConnMaxLifetime time.Duration `env:"DB_CONN_MAX_LIFETIME" envDefault:"30m"`
+	DBConnMaxIdleTime time.Duration `env:"DB_CONN_MAX_IDLE_TIME" envDefault:"5m"`
 
 	// Casdoor application used to authenticate users. Endpoint/ClientId are
 	// also used by the frontend to build the sign-in redirect; ClientSecret
@@ -25,15 +34,21 @@ type AppENV struct {
 	// value must be escaped as \n.
 	CasdoorCertificate string `env:"CASDOOR_CERTIFICATE,notEmpty"`
 
-	// Browser origins (scheme://host[:port]) allowed to call the API, e.g.
-	// the web app's URL. Comma-separated in the env var.
-	CorsAllowedOrigins []string `env:"CORS_ALLOWED_ORIGINS" envSeparator:"," envDefault:"http://localhost:5173"`
+	// Other browser origins (scheme://host[:port]) allowed to call the API,
+	// comma-separated. Normally empty: the web app is served by this binary
+	// (and proxied by Vite in dev), so it's always same-origin.
+	CorsAllowedOrigins []string `env:"CORS_ALLOWED_ORIGINS" envSeparator:","`
 
+	// Set by main from the build (-ldflags "-X main.version=...").
 	Version string
 }
 
-func ReadAppENVs() *AppENV {
-	cfg := AppENV{Version: "1.0.0"} //TODO: set version automatically
+func (e *AppENV) IsDev() bool {
+	return e.Env == "dev"
+}
+
+func ReadAppENVs(version string) *AppENV {
+	cfg := AppENV{Version: version}
 
 	// Load environment variables from .env file
 	err := godotenv.Load()

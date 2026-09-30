@@ -22,14 +22,6 @@ type (
 		Name string `json:"name"`
 	}
 
-	// IdNameBilingual is IdName for a reference table with separate Danish/
-	// English names (e.g. place_types) instead of a single Name.
-	IdNameBilingual struct {
-		Id     string `json:"id"`
-		NameDa string `json:"nameDa"`
-		NameEn string `json:"nameEn"`
-	}
-
 	AuditDto struct {
 		CreatedAt time.Time  `json:"createdAt"`
 		CreatedBy IdEmail    `json:"createdBy"`

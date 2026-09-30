@@ -14,7 +14,7 @@ import (
 // a parameterized SQL fragment referencing quoted column names and `:pN`
 // placeholders, plus the parameter values in placeholder order. It's the
 // shared implementation behind every table's "/query" endpoint (see
-// kommune.Service.Query) - only the table name, select query and row/Dto
+// sample.Service.Query) - only the table name, select query and row/Dto
 // types differ between tables.
 //
 // The fragment is validated against the table's real columns (via

@@ -14,7 +14,7 @@ type (
 		SourceId  string          `json:"sourceId"`
 		Action    string          `json:"action"` // create | update | delete
 		ChangedBy string          `json:"changedBy"`
-		Data      json.RawMessage `json:"data"`
+		Data      json.RawMessage `json:"data" swaggertype:"object"`
 		CreatedAt time.Time       `json:"createdAt"`
 	}
 )

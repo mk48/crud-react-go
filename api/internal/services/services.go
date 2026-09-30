@@ -19,7 +19,7 @@ func CreateServices(ctx context.Context, db *sqlx.DB, echo *echo.Echo, envs *uti
 
 	m := middleware.NewMiddleware(db, envs)
 
-	healthcheck.Init(echo, envs)
+	healthcheck.Init(echo, envs, db)
 
 	apiGroup := echo.Group("/api")
 	auth.Init(apiGroup)

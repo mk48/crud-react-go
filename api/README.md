@@ -14,7 +14,8 @@ domain model on top of.
 - Postgres via `sqlx` + `pgx/v5` (driver name `pgx`)
 - [sql-migrate](https://github.com/rubenv/sql-migrate)-style SQL migrations, embedded in the binary and run automatically at startup (`migrations.Run`)
 - [Casdoor](https://casdoor.org) for authentication (JWT bearer tokens, verified locally against Casdoor's certificate - see `internal/services/auth` and `internal/middleware/auth.go`)
-- `statsviz` for live runtime stats
+- `statsviz` for live runtime stats, Swagger (swaggo) for API docs - both dev only
+- Serves the built web app (`../web`) too, embedded with `-tags embedui` - see `internal/webui` and the root README
 
 ## Getting started
 
@@ -22,22 +23,26 @@ domain model on top of.
 go run ./cmd/api
 ```
 
-The server listens on `:8080` by default. On startup it connects to
-Postgres and runs any pending migrations.
+The server listens on `:8080` by default (`PORT`). On startup it connects to
+Postgres and runs any pending migrations (under an advisory lock, so
+replicas starting together take turns).
 
 Copy `.env-sample` to `.env` and fill in real values before running:
 
 | Variable | Purpose |
 |---|---|
-| `ENV` | `dev` / `prod` |
+| `ENV` | `dev` enables Swagger UI and statsviz; use `prod` otherwise |
+| `PORT` | Listen port (default `8080`) |
 | `CONNECTION_STRING` | Postgres connection string |
+| `DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` / `DB_CONN_MAX_LIFETIME` / `DB_CONN_MAX_IDLE_TIME` | Connection pool (defaults `20` / `5` / `30m` / `5m`) |
+| `CORS_ALLOWED_ORIGINS` | Optional, comma-separated - only for callers on another origin |
 | `CASDOOR_ENDPOINT` | Casdoor server URL |
 | `CASDOOR_CLIENT_ID` / `CASDOOR_CLIENT_SECRET` | Casdoor application credentials |
 | `CASDOOR_ORGANIZATION_NAME` / `CASDOOR_APPLICATION_NAME` | Casdoor organization/application names |
 | `CASDOOR_CERTIFICATE` | PEM certificate (Casdoor's Cert management page) used to verify token signatures |
 
-The frontend (`../web`) needs its own `VITE_CASDOOR_*` values pointing at
-the same Casdoor application - see its README.
+The web app gets `CASDOOR_ENDPOINT` and `CASDOOR_CLIENT_ID` from this server
+at runtime (`GET /config.js`) - it has no configuration of its own.
 
 ## Auth flow
 
@@ -59,9 +64,18 @@ the same Casdoor application - see its README.
 Most resources follow the same CRUD + audit-history + soft-delete shape; see
 `internal/services/*` for the per-table service packages.
 
-## Runtime stats
+## Dev tools (`ENV=dev` only)
 
-http://localhost:8080/kfamily-debug/statsviz
+- Swagger UI: http://localhost:8080/swagger/index.html - regenerate the spec
+  after changing handler annotations with `go generate ./cmd/api`
+- Runtime stats: http://localhost:8080/kfamily-debug/statsviz/
+
+## Health checks
+
+- `GET /healthcheck` - liveness (process is serving)
+- `GET /healthcheck/ready` - readiness (database answers a ping)
+- `kfamily healthcheck` - the binary checks its own readiness (used by the
+  container `HEALTHCHECK`, since the image has no curl)
 
 ## Package management
 

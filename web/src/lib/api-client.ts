@@ -1,5 +1,5 @@
 /**
- * Thin fetch wrapper around the separated KFamily API server.
+ * Thin fetch wrapper around the KFamily API (same origin as this app).
  * Auth (token attachment, refresh, sign-in redirects) lives in `useApiClient`;
  * this module only knows how to talk HTTP once it has a token.
  */
@@ -40,16 +40,10 @@ export async function apiFetch<T>(
   path: string,
   { token, headers, body, ...init }: ApiFetchOptions = {}
 ): Promise<T> {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL
-  if (!baseUrl) {
-    throw new Error(
-      "VITE_API_BASE_URL is not set. Add it to your .env file (see .env.example)."
-    )
-  }
-
   const bodyIsFormData = isFormData(body)
 
-  const response = await fetch(new URL(path, baseUrl), {
+  // Same origin: the API serves this app (and Vite proxies /api in dev).
+  const response = await fetch(path, {
     ...init,
     headers: {
       Accept: "application/json",

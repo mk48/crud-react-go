@@ -13,8 +13,8 @@ import (
 
 // Execer is satisfied by both *sqlx.DB and *sqlx.Tx, so Insert/UpdateByID
 // (and the RecordAudit call they make) can run either directly or inside an
-// existing transaction - see photosubmission.Service.Approve, which needs
-// several inserts/updates across different tables to commit atomically.
+// existing transaction - see user.Service.Update, which checks and updates
+// under one transaction via WithTx.
 type Execer interface {
 	NamedExecContext(ctx context.Context, query string, arg any) (sql.Result, error)
 }

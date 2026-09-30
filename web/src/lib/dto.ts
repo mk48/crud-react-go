@@ -24,14 +24,6 @@ export interface IdName {
   name: string
 }
 
-// IdName for a reference table with separate Danish/English names (e.g.
-// place types) instead of a single name.
-export interface IdNameBilingual {
-  id: string
-  nameDa: string
-  nameEn: string
-}
-
 export interface AuditColumn {
   createdAt: string | null
   createdBy: IdEmail | null
