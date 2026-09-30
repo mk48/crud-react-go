@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"kfamily/internal/crud"
 	"kfamily/internal/middleware"
 	"kfamily/internal/services/audithistory"
 	"kfamily/internal/services/auth"
@@ -24,13 +23,9 @@ func CreateServices(ctx context.Context, db *sqlx.DB, echo *echo.Echo, envs *uti
 
 	apiGroup := echo.Group("/api")
 	auth.Init(apiGroup)
-
-	// Resources on the generic crud endpoints (see crud.Register).
-	deps := crud.Deps{DB: db, Log: echo.Logger, MW: m}
-	user.Init(ctx, deps, apiGroup)
-	sample.Init(ctx, deps, apiGroup)
-	samplechild.Init(ctx, deps, apiGroup)
-
+	user.Init(ctx, echo.Logger, db, apiGroup, m)
+	sample.Init(ctx, echo.Logger, db, apiGroup, m)
+	samplechild.Init(ctx, echo.Logger, db, apiGroup, m)
 	audithistory.Init(db, apiGroup, m)
 
 }

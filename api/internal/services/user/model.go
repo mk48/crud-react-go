@@ -32,7 +32,9 @@ func (r row) toDto() Dto {
 }
 
 // selectColumns lists every column a user query returns, aliased so row can
-// scan them directly.
+// scan them directly. It reads through whatever alias "u" is bound to, so
+// the same columns work whether u is the user table itself or a RETURNING
+// CTE from an update (see service.go).
 var selectColumns = `u.id, u.sub, u.email, u.name, u.is_admin, ` + util.AuditSelectColumns("u")
 
 // selectJoins brings in the creator/updater/deleter emails needed by
@@ -40,5 +42,6 @@ var selectColumns = `u.id, u.sub, u.email, u.name, u.is_admin, ` + util.AuditSel
 // creator/updater/deleter) since users audit each other.
 var selectJoins = util.AuditSelectJoins("u")
 
-// selectQuery is crud.Resource.SelectQuery: every column, no WHERE clause.
+// selectQuery reads directly from the user table, for plain reads (GetOne,
+// List).
 var selectQuery = `SELECT ` + selectColumns + ` FROM ` + tableName + ` u ` + selectJoins

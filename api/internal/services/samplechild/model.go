@@ -46,5 +46,6 @@ var selectJoins = `
 	JOIN sample_items si ON si.id = sc.sample_item_id
 ` + util.AuditSelectJoins("sc")
 
-// selectQuery is crud.Resource.SelectQuery: every column, no WHERE clause.
+// selectQuery reads directly from the sample_child_items table, for plain
+// reads (GetOne, List).
 var selectQuery = `SELECT ` + selectColumns + ` FROM ` + tableName + ` sc ` + selectJoins
