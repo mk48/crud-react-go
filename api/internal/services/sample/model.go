@@ -28,16 +28,12 @@ func (r row) toDto() Dto {
 }
 
 // selectColumns lists every column a sample_item query returns, aliased so
-// row can scan them directly. It reads through whatever alias "s" is bound
-// to, so the same columns work whether s is the sample_items table itself or
-// a RETURNING CTE from an insert/update (see service.go).
+// row can scan them directly.
 var selectColumns = `s.id, s.name, s.description, ` + util.AuditSelectColumns("s")
 
 // selectJoins brings in the creator/updater/deleter emails needed by
 // selectColumns.
 var selectJoins = util.AuditSelectJoins("s")
 
-// selectQuery reads directly from the sample_items table, for plain reads
-// (GetOne, List). Mutations build their own query around selectColumns and
-// selectJoins so they can read from a RETURNING CTE instead.
+// selectQuery is crud.Resource.SelectQuery: every column, no WHERE clause.
 var selectQuery = `SELECT ` + selectColumns + ` FROM ` + tableName + ` s ` + selectJoins
