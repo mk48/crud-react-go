@@ -11,20 +11,15 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Execer is satisfied by both *sqlx.DB and *sqlx.Tx, so Insert/UpdateByID
-// (and the RecordAudit call they make) can run either directly or inside an
-// existing transaction - see user.Service.Update, which checks and updates
-// under one transaction via WithTx.
-type Execer interface {
-	NamedExecContext(ctx context.Context, query string, arg any) (sql.Result, error)
-}
-
 // Insert builds "INSERT INTO tableName (<cols>) VALUES (<:cols>)" from
 // params' keys, executes it, and records the row in audit_history (see
 // RecordAudit). params must include "id" set to id. Deriving the column
 // list from params instead of writing it out separately means there's no
 // place left for the two to drift apart as columns are added.
-func Insert(ctx context.Context, db Execer, tableName string, id uuid.UUID, params map[string]any) error {
+//
+// tx and ctx must be the ones RunOperation hands out, so the change is
+// recorded as part of that operation.
+func Insert(ctx context.Context, tx *sqlx.Tx, tableName string, id uuid.UUID, params map[string]any) error {
 	cols := sortedKeys(params)
 
 	placeholders := make([]string, len(cols))
@@ -39,25 +34,24 @@ func Insert(ctx context.Context, db Execer, tableName string, id uuid.UUID, para
 		return err
 	}
 
-	return inTx(ctx, db, func(tx Execer) error {
-		if _, err := tx.NamedExecContext(ctx, query, params); err != nil {
-			return fmt.Errorf("unable to insert into %s. err: %w", tableName, err)
-		}
+	if _, err := tx.NamedExecContext(ctx, query, params); err != nil {
+		return fmt.Errorf("unable to insert into %s. err: %w", tableName, err)
+	}
 
-		return RecordAudit(ctx, tx, tableName, id, AuditCreate, actor)
-	})
+	return RecordAudit(ctx, tx, tableName, id, AuditCreate, actor)
 }
 
 // UpdateByID builds "UPDATE tableName SET <col = :col, ...> WHERE id = :id
 // AND deleted_at IS NULL" from params' keys (excluding "id" from the SET
 // list), executes it, and records the row in audit_history (see
-// RecordAudit). params must include "id" set to id.
+// RecordAudit). params must include "id" set to id. As with Insert, tx and
+// ctx must come from RunOperation.
 //
 // Soft-deleted rows are read-only - they can't be edited or deleted again
 // (which would overwrite deleted_at/deleted_by). If no live row matches id,
 // nothing is changed or audited and an error wrapping sql.ErrNoRows is
 // returned, so handlers can answer 404 the same way GetOne does.
-func UpdateByID(ctx context.Context, db Execer, tableName string, id uuid.UUID, params map[string]any) error {
+func UpdateByID(ctx context.Context, tx *sqlx.Tx, tableName string, id uuid.UUID, params map[string]any) error {
 	cols := sortedKeys(params)
 
 	setClauses := make([]string, 0, len(cols))
@@ -80,40 +74,25 @@ func UpdateByID(ctx context.Context, db Execer, tableName string, id uuid.UUID, 
 		return err
 	}
 
-	return inTx(ctx, db, func(tx Execer) error {
-		result, err := tx.NamedExecContext(ctx, query, params)
-		if err != nil {
-			return fmt.Errorf("unable to update %s. err: %w", tableName, err)
-		}
-
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("unable to read rows affected for %s. err: %w", tableName, err)
-		}
-		if affected == 0 {
-			return fmt.Errorf("no live %s row with id %s. err: %w", tableName, id, sql.ErrNoRows)
-		}
-
-		return RecordAudit(ctx, tx, tableName, id, action, actor)
-	})
-}
-
-// inTx runs fn so that the row change and its audit_history record commit
-// or roll back together. Given a *sqlx.DB it opens (and commits/rolls back)
-// its own transaction; given anything else - i.e. a caller's *sqlx.Tx - fn
-// just runs on it, and the caller stays in charge of commit/rollback.
-func inTx(ctx context.Context, db Execer, fn func(tx Execer) error) error {
-	sqlDB, ok := db.(*sqlx.DB)
-	if !ok {
-		return fn(db)
+	result, err := tx.NamedExecContext(ctx, query, params)
+	if err != nil {
+		return fmt.Errorf("unable to update %s. err: %w", tableName, err)
 	}
 
-	return WithTx(ctx, sqlDB, func(tx *sqlx.Tx) error { return fn(tx) })
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("unable to read rows affected for %s. err: %w", tableName, err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("no live %s row with id %s. err: %w", tableName, id, sql.ErrNoRows)
+	}
+
+	return RecordAudit(ctx, tx, tableName, id, action, actor)
 }
 
 // WithTx runs fn in a new transaction on db - committed if fn returns nil,
-// rolled back otherwise. Pass tx on to Insert/UpdateByID to fold them (and
-// their audit records) into the same transaction.
+// rolled back otherwise. Writes to audited tables use RunOperation instead,
+// which runs on top of this.
 func WithTx(ctx context.Context, db *sqlx.DB, fn func(tx *sqlx.Tx) error) error {
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {

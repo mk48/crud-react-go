@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 // Audit actions recorded in audit_history.action.
@@ -20,23 +21,33 @@ const (
 // right after the create/update/delete, inside the same transaction (see
 // Insert/UpdateByID), so the snapshot is exactly the state just written.
 // changedBy is the user who made the change.
-func RecordAudit(ctx context.Context, db Execer, tableName string, sourceID uuid.UUID, action string, changedBy uuid.UUID) error {
+//
+// ctx must carry the operation the change is part of (see RunOperation),
+// stored as operation_id so the change can be traced back to the action
+// that caused it - a write outside any operation is refused.
+func RecordAudit(ctx context.Context, tx *sqlx.Tx, tableName string, sourceID uuid.UUID, action string, changedBy uuid.UUID) error {
+	opID, ok := operationID(ctx)
+	if !ok {
+		return fmt.Errorf("unable to record audit history for %s row %s: not inside an operation (see util.RunOperation)", tableName, sourceID)
+	}
+
 	// clock_timestamp(), not now() (the transaction start), so several
 	// changes made in one transaction still sort in the order they happened.
 	// tableName is a trusted constant from each service (never user input),
 	// quoted where needed (e.g. `"user"`); audit_history stores it bare.
 	query := fmt.Sprintf(`
-		INSERT INTO audit_history (id, table_name, source_id, action, changed_by, data, created_at)
-		SELECT :id, :table_name, t.id, :action, :changed_by, to_jsonb(t), clock_timestamp()
+		INSERT INTO audit_history (id, table_name, source_id, action, changed_by, operation_id, data, created_at)
+		SELECT :id, :table_name, t.id, :action, :changed_by, :operation_id, to_jsonb(t), clock_timestamp()
 		FROM %s t
 		WHERE t.id = :source_id`, tableName)
 
-	result, err := db.NamedExecContext(ctx, query, map[string]any{
-		"id":         uuid.New(),
-		"table_name": strings.Trim(tableName, `"`),
-		"source_id":  sourceID,
-		"action":     action,
-		"changed_by": changedBy,
+	result, err := tx.NamedExecContext(ctx, query, map[string]any{
+		"id":           uuid.New(),
+		"table_name":   strings.Trim(tableName, `"`),
+		"source_id":    sourceID,
+		"action":       action,
+		"changed_by":   changedBy,
+		"operation_id": opID,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to record audit history. err: %w", err)

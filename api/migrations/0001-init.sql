@@ -42,6 +42,36 @@ CREATE INDEX idx_user_email_trgm ON "user" USING gin (email gin_trgm_ops);
 INSERT INTO "user" (id, sub, email, name, is_admin, created_at, created_by) VALUES
   ('8e4d4b2a-8dc3-4d73-bfee-7d6032ec2212', 'system', 'kumaran.veera@outlook.com', 'Kumaran', TRUE, now(), '8e4d4b2a-8dc3-4d73-bfee-7d6032ec2212');
 
+-- One row per user action that writes data - a form save, an import, a
+-- button that updates several tables. Every audit_history row points at the
+-- operation that caused it, so a record's history can say *why* it changed
+-- (e.g. "created by import of family.csv", or "updated as a side effect of
+-- approving sample X") and not just who changed it. See util.RunOperation.
+CREATE TABLE operation (
+  id            uuid PRIMARY KEY,
+  -- Dotted "<resource>.<action>" key, e.g. 'sample.create'. The web app
+  -- translates it for display (operation.kind.* in translation.json).
+  kind          varchar(100) NOT NULL CHECK (length(btrim(kind)) > 0),
+  -- Deferred so a user's own sign-up (middleware.CreateUser) can record its
+  -- operation before the "user" row it is performed by exists.
+  performed_by  uuid NOT NULL REFERENCES "user"(id) DEFERRABLE INITIALLY DEFERRED,
+  -- The record the user acted on directly, if any - audit_history rows of
+  -- other records under the same operation are its side effects. NULL for
+  -- operations with no single target (e.g. an import).
+  target_table  varchar(100) NULL,
+  target_id     uuid NULL,
+  -- Free-form context, e.g. an import's file name and row count.
+  metadata      jsonb NOT NULL DEFAULT '{}',
+  created_at    timestamptz NOT NULL DEFAULT now(),
+
+  CONSTRAINT chk_operation_target_pair CHECK ((target_table IS NULL) = (target_id IS NULL))
+);
+-- Default list order (operation.Service.List), newest first.
+CREATE INDEX idx_operation_created_at ON operation (created_at, id);
+-- "Everything user X did".
+CREATE INDEX idx_operation_performed_by ON operation (performed_by, created_at DESC);
+CREATE INDEX idx_operation_kind_trgm ON operation USING gin (kind gin_trgm_ops);
+
 -- One row per create/update/delete of any audited table (see
 -- util.RecordAudit), holding the full row as it was right after the change.
 CREATE TABLE audit_history (
@@ -50,6 +80,8 @@ CREATE TABLE audit_history (
   source_id    uuid NOT NULL,
   action       varchar(10) NOT NULL CHECK (action IN ('create', 'update', 'delete')),
   changed_by   uuid NOT NULL REFERENCES "user"(id),
+  -- The operation that caused the change (see util.RunOperation).
+  operation_id uuid NOT NULL REFERENCES operation(id),
   data         jsonb NOT NULL,
   created_at   timestamptz NOT NULL DEFAULT now()
 );
@@ -58,6 +90,8 @@ CREATE INDEX idx_audit_history_source ON audit_history (source_id, created_at DE
 -- "Everything user X changed" / "all deletes on table Y".
 CREATE INDEX idx_audit_history_changed_by ON audit_history (changed_by, created_at DESC);
 CREATE INDEX idx_audit_history_table_action ON audit_history (table_name, action, created_at DESC);
+-- An operation's changes (operation.Service.GetOne), in the order made.
+CREATE INDEX idx_audit_history_operation ON audit_history (operation_id, created_at);
 
 -- Sample table for testing the CRUD/auth setup end to end. Not part of the
 -- real family-tree schema yet - replace once the actual domain is designed.
@@ -108,4 +142,5 @@ CREATE INDEX idx_sample_child_items_name_trgm ON sample_child_items USING gin (n
 DROP TABLE IF EXISTS sample_child_items;
 DROP TABLE IF EXISTS sample_items;
 DROP TABLE IF EXISTS audit_history;
+DROP TABLE IF EXISTS operation;
 DROP TABLE IF EXISTS "user";

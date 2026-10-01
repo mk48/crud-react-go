@@ -14,7 +14,7 @@ COPY web/ ./
 RUN pnpm build
 
 ### API: compile a static binary with the web app embedded
-FROM golang:1.25-alpine AS api
+FROM golang:1.27-alpine AS api
 WORKDIR /src/api
 COPY api/go.mod api/go.sum ./
 RUN go mod download

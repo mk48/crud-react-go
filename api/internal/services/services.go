@@ -6,6 +6,7 @@ import (
 	"kfamily/internal/services/audithistory"
 	"kfamily/internal/services/auth"
 	"kfamily/internal/services/healthcheck"
+	"kfamily/internal/services/operation"
 	"kfamily/internal/services/sample"
 	"kfamily/internal/services/samplechild"
 	"kfamily/internal/services/user"
@@ -27,5 +28,6 @@ func CreateServices(ctx context.Context, db *sqlx.DB, echo *echo.Echo, envs *uti
 	sample.Init(ctx, echo.Logger, db, apiGroup, m)
 	samplechild.Init(ctx, echo.Logger, db, apiGroup, m)
 	audithistory.Init(db, apiGroup, m)
+	operation.Init(ctx, echo.Logger, db, apiGroup, m)
 
 }

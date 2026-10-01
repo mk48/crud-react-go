@@ -51,6 +51,8 @@ export interface ResourceListProps<TDto extends RowData> {
   // Rendered top-right of the search bar - e.g. a "create new" link/button.
   // Table-specific because it's a route the generic list can't know about.
   headerActions?: ReactNode
+  // Off for tables without soft delete (e.g. operations).
+  showIncludeDeleted?: boolean
 }
 
 const DEFAULT_SORTING: SortingState = [{ id: "createdAt", desc: true }]
@@ -65,6 +67,7 @@ export default function ResourceList<TDto extends RowData>({
   defaultSorting = DEFAULT_SORTING,
   searchPlaceholder,
   headerActions,
+  showIncludeDeleted = true,
 }: ResourceListProps<TDto>) {
   const { t } = useTranslation()
   const apiClient = useApiClient()
@@ -272,19 +275,21 @@ export default function ResourceList<TDto extends RowData>({
               </div>
 
               {/* ------------------------- Search by: Include deleted records -------------------------*/}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="includeDeleted"
-                  checked={includeDeletedRecords}
-                  onCheckedChange={searchIncludeDeletedChange}
-                />
-                <label
-                  htmlFor="includeDeleted"
-                  className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {t("include-deleted-records")}
-                </label>
-              </div>
+              {showIncludeDeleted && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="includeDeleted"
+                    checked={includeDeletedRecords}
+                    onCheckedChange={searchIncludeDeletedChange}
+                  />
+                  <label
+                    htmlFor="includeDeleted"
+                    className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {t("include-deleted-records")}
+                  </label>
+                </div>
+              )}
             </div>
             {headerActions}
           </div>

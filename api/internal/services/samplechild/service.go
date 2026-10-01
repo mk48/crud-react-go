@@ -70,12 +70,15 @@ func (s *Service) Create(ctx context.Context, input CreateInputDto, loggedInUser
 
 	newId := uuid.New()
 
-	err = util.Insert(ctx, s.db, tableName, newId, map[string]any{
-		"id":             newId,
-		"sample_item_id": sampleItemId,
-		"name":           input.Name,
-		"created_at":     time.Now(),
-		"created_by":     loggedInUserId,
+	op := util.Operation{Kind: "sample_child.create", PerformedBy: loggedInUserId, TargetTable: tableName, TargetID: newId}
+	err = util.RunOperation(ctx, s.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
+		return util.Insert(ctx, tx, tableName, newId, map[string]any{
+			"id":             newId,
+			"sample_item_id": sampleItemId,
+			"name":           input.Name,
+			"created_at":     time.Now(),
+			"created_by":     loggedInUserId,
+		})
 	})
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("unable to create new sample child item. err: %w", err)
@@ -102,12 +105,15 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInputDto
 		return err
 	}
 
-	err = util.UpdateByID(ctx, s.db, tableName, id, map[string]any{
-		"id":             id,
-		"sample_item_id": sampleItemId,
-		"name":           input.Name,
-		"updated_at":     time.Now(),
-		"updated_by":     loggedInUserId,
+	op := util.Operation{Kind: "sample_child.update", PerformedBy: loggedInUserId, TargetTable: tableName, TargetID: id}
+	err = util.RunOperation(ctx, s.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
+		return util.UpdateByID(ctx, tx, tableName, id, map[string]any{
+			"id":             id,
+			"sample_item_id": sampleItemId,
+			"name":           input.Name,
+			"updated_at":     time.Now(),
+			"updated_by":     loggedInUserId,
+		})
 	})
 	if err != nil {
 		return fmt.Errorf("unable to update sample child item. err: %w", err)
@@ -117,10 +123,13 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInputDto
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID, loggedInUserId uuid.UUID) error {
-	err := util.UpdateByID(ctx, s.db, tableName, id, map[string]any{
-		"id":         id,
-		"deleted_at": time.Now(),
-		"deleted_by": loggedInUserId,
+	op := util.Operation{Kind: "sample_child.delete", PerformedBy: loggedInUserId, TargetTable: tableName, TargetID: id}
+	err := util.RunOperation(ctx, s.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
+		return util.UpdateByID(ctx, tx, tableName, id, map[string]any{
+			"id":         id,
+			"deleted_at": time.Now(),
+			"deleted_by": loggedInUserId,
+		})
 	})
 	if err != nil {
 		return fmt.Errorf("unable to delete sample child item. err: %w", err)

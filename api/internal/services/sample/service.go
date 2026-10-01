@@ -59,12 +59,15 @@ func (s *Service) Metadata(ctx context.Context) ([]dto.ColumnMeta, error) {
 func (s *Service) Create(ctx context.Context, input CreateInputDto, loggedInUserId uuid.UUID) (uuid.UUID, error) {
 	newId := uuid.New()
 
-	err := util.Insert(ctx, s.db, tableName, newId, map[string]any{
-		"id":          newId,
-		"name":        input.Name,
-		"description": input.Description,
-		"created_at":  time.Now(),
-		"created_by":  loggedInUserId,
+	op := util.Operation{Kind: "sample.create", PerformedBy: loggedInUserId, TargetTable: tableName, TargetID: newId}
+	err := util.RunOperation(ctx, s.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
+		return util.Insert(ctx, tx, tableName, newId, map[string]any{
+			"id":          newId,
+			"name":        input.Name,
+			"description": input.Description,
+			"created_at":  time.Now(),
+			"created_by":  loggedInUserId,
+		})
 	})
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("unable to create new sample item. err: %w", err)
@@ -89,12 +92,15 @@ func (s *Service) Query(ctx context.Context, filter dto.Filters, whereCondition 
 }
 
 func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInputDto, loggedInUserId uuid.UUID) error {
-	err := util.UpdateByID(ctx, s.db, tableName, id, map[string]any{
-		"id":          id,
-		"name":        input.Name,
-		"description": input.Description,
-		"updated_at":  time.Now(),
-		"updated_by":  loggedInUserId,
+	op := util.Operation{Kind: "sample.update", PerformedBy: loggedInUserId, TargetTable: tableName, TargetID: id}
+	err := util.RunOperation(ctx, s.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
+		return util.UpdateByID(ctx, tx, tableName, id, map[string]any{
+			"id":          id,
+			"name":        input.Name,
+			"description": input.Description,
+			"updated_at":  time.Now(),
+			"updated_by":  loggedInUserId,
+		})
 	})
 	if err != nil {
 		return fmt.Errorf("unable to update sample item. err: %w", err)
@@ -104,10 +110,13 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInputDto
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID, loggedInUserId uuid.UUID) error {
-	err := util.UpdateByID(ctx, s.db, tableName, id, map[string]any{
-		"id":         id,
-		"deleted_at": time.Now(),
-		"deleted_by": loggedInUserId,
+	op := util.Operation{Kind: "sample.delete", PerformedBy: loggedInUserId, TargetTable: tableName, TargetID: id}
+	err := util.RunOperation(ctx, s.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
+		return util.UpdateByID(ctx, tx, tableName, id, map[string]any{
+			"id":         id,
+			"deleted_at": time.Now(),
+			"deleted_by": loggedInUserId,
+		})
 	})
 	if err != nil {
 		return fmt.Errorf("unable to delete sample item. err: %w", err)

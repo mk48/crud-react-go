@@ -77,7 +77,10 @@
     "audit-history-records": "Audit history",
     "action-by": "Action by",
     "action-at": "Action at",
-    "no-actions": "(no actions)"
+    "no-actions": "(no actions)",
+    "via": "via",
+    "side-effect-of": "Side effect of",
+    "part-of": "Part of"
   },
   "samples": {
     "page-title": "Samples",
@@ -94,5 +97,46 @@
     "delete-failed": "Can't delete the sample {{Name}}",
     "select-placeholder": "Select sample",
     "not-found": "Sample is not available for this"
+  },
+  "operation": {
+    "page-title": "Operations",
+    "operation": "Operation",
+    "performed-by": "Performed by",
+    "performed-at": "Performed at",
+    "target": "Target",
+    "changes": "Changes",
+    "details": "Details",
+    "record": "Record",
+    "search-placeholder": "Search by operation or table key",
+    "changes-truncated": "Showing the first {{shown}} of {{total}} changes",
+    "side-effect": "Side effect",
+    "action": {
+      "create": "Created",
+      "update": "Updated",
+      "delete": "Deleted"
+    },
+    "table": {
+      "sample_items": "Sample",
+      "sample_child_items": "Sample child",
+      "user": "User"
+    },
+    "kind": {
+      "sample": {
+        "create": "Create sample",
+        "update": "Edit sample",
+        "delete": "Delete sample"
+      },
+      "sample_child": {
+        "create": "Create sample child",
+        "update": "Edit sample child",
+        "delete": "Delete sample child"
+      },
+      "user": {
+        "update": "Edit user",
+        "delete": "Delete user",
+        "sign_up": "First sign-in",
+        "relink_sign_in": "Link new sign-in method"
+      }
+    }
   }
 }

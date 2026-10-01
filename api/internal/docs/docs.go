@@ -22,7 +22,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Every change recorded for a record (any table's primary key), newest first. Each entry holds the full row right after the change.",
+                "description": "Every change recorded for a record (any table's primary key), newest first. Each entry holds the full row right after the change, and the operation that caused it.",
                 "consumes": [
                     "application/json"
                 ],
@@ -142,6 +142,301 @@ const docTemplate = `{
                     },
                     "429": {
                         "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/operations": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "One page of operations (user actions that wrote data), optionally narrowed by a free-text search over kind and target table.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "List operations",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Page index, from 0",
+                        "name": "pageIndex",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Rows per page (1-150)",
+                        "name": "recordsPerPage",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort as \u003ccolumn\u003e:asc|desc, e.g. createdAt:desc",
+                        "name": "sortBy",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Free-text search",
+                        "name": "searchText",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/util.HttpResult"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/kfamily_internal_dto.PaginationResponse-services_operation_Dto"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/operations/meta": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Column names and Postgres data types - valid sort/filter columns for the query builder.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Operations table columns",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/util.HttpResult"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/dto.ColumnMeta"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/operations/query": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Operations matching a parameterized SQL WHERE fragment from the query builder: quoted column names and :p1, :p2... placeholders, validated server-side.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Advanced query for operations",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Page index, from 0",
+                        "name": "pageIndex",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Rows per page (1-150)",
+                        "name": "recordsPerPage",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort as \u003ccolumn\u003e:asc|desc, e.g. createdAt:desc",
+                        "name": "sortBy",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "WHERE fragment with double-quoted column names and :pN placeholders",
+                        "name": "whereCondition",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "JSON array of the :p1, :p2... values, in order",
+                        "name": "whereConditionParametersJson",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/util.HttpResult"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/kfamily_internal_dto.PaginationResponse-services_operation_Dto"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/operations/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "An operation with the record changes it caused (at most 1000; compare with changeCount), in the order they were made.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Operations"
+                ],
+                "summary": "Get one operation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "operation id (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/util.HttpResult"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "result": {
+                                            "$ref": "#/definitions/services_operation.DetailDto"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpResult"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/util.HttpResult"
                         }
@@ -1777,6 +2072,20 @@ const docTemplate = `{
                 }
             }
         },
+        "kfamily_internal_dto.PaginationResponse-services_operation_Dto": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services_operation.Dto"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/dto.PaginationInfo"
+                }
+            }
+        },
         "kfamily_internal_dto.PaginationResponse-services_sample_Dto": {
             "type": "object",
             "properties": {
@@ -1838,10 +2147,36 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "operation": {
+                    "$ref": "#/definitions/services_audithistory.OperationDto"
+                },
                 "sourceId": {
                     "type": "string"
                 },
                 "tableName": {
+                    "type": "string"
+                }
+            }
+        },
+        "services_audithistory.OperationDto": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "performedBy": {
+                    "$ref": "#/definitions/dto.IdEmail"
+                },
+                "targetId": {
+                    "type": "string"
+                },
+                "targetTable": {
                     "type": "string"
                 }
             }
@@ -1881,6 +2216,106 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "services_operation.ChangeDto": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "description": "create | update | delete",
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "data": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "previousData": {
+                    "description": "The record as it was before this change; null for a create.",
+                    "type": "object"
+                },
+                "sourceDeleted": {
+                    "description": "Whether the record has been deleted since (by this or a later\noperation) - its regular view page no longer shows it.",
+                    "type": "boolean"
+                },
+                "sourceId": {
+                    "type": "string"
+                },
+                "tableName": {
+                    "type": "string"
+                }
+            }
+        },
+        "services_operation.DetailDto": {
+            "type": "object",
+            "properties": {
+                "changeCount": {
+                    "description": "Number of audit_history rows (record changes) it caused.",
+                    "type": "integer"
+                },
+                "changes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services_operation.ChangeDto"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "performedBy": {
+                    "$ref": "#/definitions/dto.IdEmail"
+                },
+                "targetId": {
+                    "type": "string"
+                },
+                "targetTable": {
+                    "description": "The record the user acted on directly; null for operations with\nno single target (e.g. an import).",
+                    "type": "string"
+                }
+            }
+        },
+        "services_operation.Dto": {
+            "type": "object",
+            "properties": {
+                "changeCount": {
+                    "description": "Number of audit_history rows (record changes) it caused.",
+                    "type": "integer"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object"
+                },
+                "performedBy": {
+                    "$ref": "#/definitions/dto.IdEmail"
+                },
+                "targetId": {
+                    "type": "string"
+                },
+                "targetTable": {
+                    "description": "The record the user acted on directly; null for operations with\nno single target (e.g. an import).",
                     "type": "string"
                 }
             }

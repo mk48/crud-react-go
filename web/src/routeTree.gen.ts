@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedOperationsIndexRouteImport } from './routes/_authenticated/operations/index'
+import { Route as AuthenticatedOperationsIdRouteImport } from './routes/_authenticated/operations/$id'
 import { Route as AuthenticatedSampleChildrenIndexRouteImport } from './routes/_authenticated/sample-children/index'
 import { Route as AuthenticatedSampleChildrenNewRouteImport } from './routes/_authenticated/sample-children/new'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
@@ -41,6 +43,18 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedOperationsIndexRoute =
+  AuthenticatedOperationsIndexRouteImport.update({
+    id: '/operations/',
+    path: '/operations/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedOperationsIdRoute =
+  AuthenticatedOperationsIdRouteImport.update({
+    id: '/operations/$id',
+    path: '/operations/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedSampleChildrenIndexRoute =
   AuthenticatedSampleChildrenIndexRouteImport.update({
     id: '/sample-children/',
@@ -127,8 +141,10 @@ const AuthenticatedUsersIdEditRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/callback': typeof CallbackRoute
+  '/operations/$id': typeof AuthenticatedOperationsIdRoute
   '/sample-children/new': typeof AuthenticatedSampleChildrenNewRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/operations/': typeof AuthenticatedOperationsIndexRoute
   '/sample-children/': typeof AuthenticatedSampleChildrenIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
@@ -145,8 +161,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/callback': typeof CallbackRoute
   '/': typeof AuthenticatedIndexRoute
+  '/operations/$id': typeof AuthenticatedOperationsIdRoute
   '/sample-children/new': typeof AuthenticatedSampleChildrenNewRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/operations': typeof AuthenticatedOperationsIndexRoute
   '/sample-children': typeof AuthenticatedSampleChildrenIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
@@ -165,8 +183,10 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/callback': typeof CallbackRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/operations/$id': typeof AuthenticatedOperationsIdRoute
   '/_authenticated/sample-children/new': typeof AuthenticatedSampleChildrenNewRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/_authenticated/operations/': typeof AuthenticatedOperationsIndexRoute
   '/_authenticated/sample-children/': typeof AuthenticatedSampleChildrenIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
@@ -185,8 +205,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/callback'
+    | '/operations/$id'
     | '/sample-children/new'
     | '/samples/new'
+    | '/operations/'
     | '/sample-children/'
     | '/samples/'
     | '/users/'
@@ -203,8 +225,10 @@ export interface FileRouteTypes {
   to:
     | '/callback'
     | '/'
+    | '/operations/$id'
     | '/sample-children/new'
     | '/samples/new'
+    | '/operations'
     | '/sample-children'
     | '/samples'
     | '/users'
@@ -222,8 +246,10 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/callback'
     | '/_authenticated/'
+    | '/_authenticated/operations/$id'
     | '/_authenticated/sample-children/new'
     | '/_authenticated/samples/new'
+    | '/_authenticated/operations/'
     | '/_authenticated/sample-children/'
     | '/_authenticated/samples/'
     | '/_authenticated/users/'
@@ -264,6 +290,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/operations/': {
+      id: '/_authenticated/operations/'
+      path: '/operations'
+      fullPath: '/operations/'
+      preLoaderRoute: typeof AuthenticatedOperationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/operations/$id': {
+      id: '/_authenticated/operations/$id'
+      path: '/operations/$id'
+      fullPath: '/operations/$id'
+      preLoaderRoute: typeof AuthenticatedOperationsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/sample-children/': {
@@ -369,8 +409,10 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedOperationsIdRoute: typeof AuthenticatedOperationsIdRoute
   AuthenticatedSampleChildrenNewRoute: typeof AuthenticatedSampleChildrenNewRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
+  AuthenticatedOperationsIndexRoute: typeof AuthenticatedOperationsIndexRoute
   AuthenticatedSampleChildrenIndexRoute: typeof AuthenticatedSampleChildrenIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
@@ -387,8 +429,10 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedOperationsIdRoute: AuthenticatedOperationsIdRoute,
   AuthenticatedSampleChildrenNewRoute: AuthenticatedSampleChildrenNewRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
+  AuthenticatedOperationsIndexRoute: AuthenticatedOperationsIndexRoute,
   AuthenticatedSampleChildrenIndexRoute: AuthenticatedSampleChildrenIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,

@@ -46,6 +46,19 @@ export interface AuditHistory<T> {
   changedBy: string
   createdAt: string
   data: T
+  operation: OperationSummary
+}
+
+// The operation (user action) that caused an audit_history change - see the
+// API's util.RunOperation. The change is a side effect of it when it
+// targets a different record (or none, e.g. an import).
+export interface OperationSummary {
+  id: string
+  kind: string
+  performedBy: IdEmail
+  targetTable: string | null
+  targetId: string | null
+  createdAt: string
 }
 
 // Matches the API's dto.ColumnMeta - GET /api/v1/samples/meta (and

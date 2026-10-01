@@ -11,6 +11,7 @@ import (
 	"kfamily/internal/util"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 // This logic is repetitive, we already have user service,
@@ -66,7 +67,13 @@ func (mw *Middleware) CreateUser(
 
 	// "user" is a reserved word in Postgres and must be double-quoted in the
 	// generated SQL (see internal/services/user/service.go's tableName).
-	if err := util.Insert(ctx, mw.db, `"user"`, id, param); err != nil {
+	// The new user performs their own sign-up (see operation.performed_by's
+	// deferred foreign key in migrations/0001-init.sql).
+	op := util.Operation{Kind: "user.sign_up", PerformedBy: id, TargetTable: `"user"`, TargetID: id}
+	err := util.RunOperation(ctx, mw.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
+		return util.Insert(ctx, tx, `"user"`, id, param)
+	})
+	if err != nil {
 		return nil, fmt.Errorf("unable to create new user. err: %w", err)
 	}
 
@@ -99,7 +106,11 @@ func (mw *Middleware) UpdateUserSub(ctx context.Context, existing *model.User, s
 
 	// "user" is a reserved word in Postgres and must be double-quoted in the
 	// generated SQL (see internal/services/user/service.go's tableName).
-	if err := util.UpdateByID(ctx, mw.db, `"user"`, existing.ID, param); err != nil {
+	op := util.Operation{Kind: "user.relink_sign_in", PerformedBy: existing.ID, TargetTable: `"user"`, TargetID: existing.ID}
+	err := util.RunOperation(ctx, mw.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
+		return util.UpdateByID(ctx, tx, `"user"`, existing.ID, param)
+	})
+	if err != nil {
 		return nil, fmt.Errorf("unable to update user sub. err: %w", err)
 	}
 

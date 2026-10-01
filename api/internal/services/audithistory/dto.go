@@ -3,6 +3,8 @@ package audithistory
 import (
 	"encoding/json"
 	"time"
+
+	"kfamily/internal/dto"
 )
 
 type (
@@ -16,5 +18,18 @@ type (
 		ChangedBy string          `json:"changedBy"`
 		Data      json.RawMessage `json:"data" swaggertype:"object"`
 		CreatedAt time.Time       `json:"createdAt"`
+		Operation OperationDto    `json:"operation"`
+	}
+
+	// OperationDto is the operation that caused a change (see
+	// util.RunOperation). The change is a side effect of it when it targets
+	// a different record (or none, e.g. an import) than the one changed.
+	OperationDto struct {
+		Id          string      `json:"id"`
+		Kind        string      `json:"kind"`
+		PerformedBy dto.IdEmail `json:"performedBy"`
+		TargetTable *string     `json:"targetTable"`
+		TargetId    *string     `json:"targetId"`
+		CreatedAt   time.Time   `json:"createdAt"`
 	}
 )

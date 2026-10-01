@@ -8,9 +8,10 @@ import { MINUTE } from "@/lib/constants"
 const apiPath = "/api/v1/users"
 
 // Every mutation refreshes all of this resource's cached queries (lists,
-// details, dropdown options - all keyed under apiPath) and audit histories.
+// details, dropdown options - all keyed under apiPath), audit histories and
+// the operations log.
 const mutationMeta = {
-  invalidates: [[apiPath], ["audit-history"]],
+  invalidates: [[apiPath], ["audit-history"], ["/api/v1/operations"]],
 }
 
 export const userQueries = {

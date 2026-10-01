@@ -7,11 +7,13 @@ import type { SamplesDto, SamplesRequestDto } from "./types"
 const apiPath = "/api/v1/samples"
 
 // Every mutation refreshes all of this resource's cached queries (lists,
-// details, dropdown options - all keyed under apiPath) and audit histories.
+// details, dropdown options - all keyed under apiPath), audit histories and
+// the operations log.
 const mutationMeta = {
   invalidates: [
     [apiPath],
     ["audit-history"],
+    ["/api/v1/operations"],
     // sample children show their parent sample's name
     ["/api/v1/sample-children"],
   ],

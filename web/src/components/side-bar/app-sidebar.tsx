@@ -1,5 +1,5 @@
 import * as React from "react"
-import { FlaskConical, ListTree, Trees, Users } from "lucide-react"
+import { FlaskConical, History, ListTree, Trees, Users } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
@@ -46,6 +46,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: t("user.page-title"),
       url: "/users",
       icon: Users,
+    },
+    {
+      title: t("operation.page-title"),
+      url: "/operations",
+      icon: History,
     },
   ]
 

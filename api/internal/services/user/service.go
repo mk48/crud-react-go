@@ -91,7 +91,8 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInputDto
 	}
 	demoting := input.IsAdmin != nil && !*input.IsAdmin
 
-	err := util.WithTx(ctx, s.db, func(tx *sqlx.Tx) error {
+	op := util.Operation{Kind: "user.update", PerformedBy: loggedInUserId, TargetTable: tableName, TargetID: id}
+	err := util.RunOperation(ctx, s.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
 		if demoting {
 			if err := guardLastAdmin(ctx, tx, id); err != nil {
 				return err
@@ -107,7 +108,8 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInputDto
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID, loggedInUserId uuid.UUID) error {
-	err := util.WithTx(ctx, s.db, func(tx *sqlx.Tx) error {
+	op := util.Operation{Kind: "user.delete", PerformedBy: loggedInUserId, TargetTable: tableName, TargetID: id}
+	err := util.RunOperation(ctx, s.db, op, func(ctx context.Context, tx *sqlx.Tx) error {
 		if err := guardLastAdmin(ctx, tx, id); err != nil {
 			return err
 		}

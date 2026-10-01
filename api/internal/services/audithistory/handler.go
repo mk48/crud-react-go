@@ -22,7 +22,7 @@ func NewHandler(s *Service) *Handler {
 // @Security     ApiKeyAuth
 // @Tags         Audit history
 // @Summary      List audit history for a record
-// @Description  Every change recorded for a record (any table's primary key), newest first. Each entry holds the full row right after the change.
+// @Description  Every change recorded for a record (any table's primary key), newest first. Each entry holds the full row right after the change, and the operation that caused it.
 // @Accept       json
 // @Produce      json
 // @Param        id   path      string  true  "Source record id (primary key)"
