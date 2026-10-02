@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useTranslation } from "react-i18next"
 
 import { PageHeader } from "@/components/layout/page-header"
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/_authenticated/samples/new")({
 
 function RouteComponent() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
 
   return (
     <>
@@ -22,7 +23,7 @@ function RouteComponent() {
       />
       <AdminOnly fallback="page">
         <div className="mx-auto w-96 p-4">
-          <SamplesNewForm />
+          <SamplesNewForm onCreated={() => navigate({ to: "/samples" })} />
         </div>
       </AdminOnly>
     </>

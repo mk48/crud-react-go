@@ -4,7 +4,8 @@ Every change to the data can be traced back to **who** made it, **from which
 app**, **as part of which action**, and **which request**, down to the
 individual database queries. This document explains how that works, how to
 configure it, and how to extend it when new apps (mobile, admin, batch jobs)
-start calling the API.
+start calling the API. For a short overview of how each app signs in and
+what a request leaves behind, see [multi-app-auth.md](multi-app-auth.md).
 
 - [The four questions](#the-four-questions)
 - [How a request flows](#how-a-request-flows)

@@ -51,10 +51,8 @@ const SampleChildrenUpdateForm: React.FC<props> = ({ id, onUpdated }) => {
             isBusy={mutation.isPending}
           />
           <MutationFeedback
-            isSuccess={mutation.isSuccess}
             isError={mutation.isError}
             error={mutation.error}
-            successMessage={t("update-success")}
             errorMessage={t("update-failed")}
           />
         </>

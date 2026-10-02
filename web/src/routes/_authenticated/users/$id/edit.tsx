@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/users/$id/edit")({
 
 function RouteComponent() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { id } = Route.useParams()
   const apiClient = useApiClient()
 
@@ -31,7 +32,10 @@ function RouteComponent() {
       />
       <AdminOnly fallback="page">
         <div className="p-4">
-          <UserUpdateForm id={id} />
+          <UserUpdateForm
+            id={id}
+            onUpdated={() => navigate({ to: "/users" })}
+          />
         </div>
       </AdminOnly>
     </>
