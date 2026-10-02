@@ -52,7 +52,7 @@ func (h *Handler) GetOne(c *echo.Context) error {
 // @Tags         Operations
 // @Security     ApiKeyAuth
 // @Produce      json
-// @Description  One page of operations (user actions that wrote data), optionally narrowed by a free-text search over kind and target table.
+// @Description  One page of operations (user actions that wrote data), optionally narrowed by a free-text search over kind, target table and client (app).
 // @Param        pageIndex       query  int     false  "Page index, from 0"  default(0)
 // @Param        recordsPerPage  query  int     false  "Rows per page (1-150)"  default(10)
 // @Param        sortBy          query  string  false  "Sort as <column>:asc|desc, e.g. createdAt:desc"

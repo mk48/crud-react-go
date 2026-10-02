@@ -64,13 +64,13 @@ func (s *Service) Metadata(ctx context.Context) ([]dto.ColumnMeta, error) {
 	return columns, nil
 }
 
-// List returns a page of operations matching filter's search/sort/pagination.
-// See util.List.
+// List returns a page of operations matching filter's search (over kind,
+// target table and client), sort and pagination. See util.List.
 func (s *Service) List(ctx context.Context, filter dto.Filters) (*dto.PaginationResponse[Dto], error) {
 	// Operations are never deleted - there's no deleted_at for util.List to
 	// filter on.
 	filter.IncludeDeletedRecords = true
-	return util.List(ctx, s.db, tableName, "o", selectQuery, []string{"kind", "target_table"}, filter, row.toDto)
+	return util.List(ctx, s.db, tableName, "o", selectQuery, []string{"kind", "target_table", "client"}, filter, row.toDto)
 }
 
 // Query lists operations matching a dynamic WHERE clause built by the

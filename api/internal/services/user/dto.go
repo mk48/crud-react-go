@@ -19,6 +19,8 @@ type (
 		Email   string  `json:"email"`
 		Name    *string `json:"name"`
 		IsAdmin bool    `json:"isAdmin"`
+		// A service account (batch job, system) - never signs in.
+		IsService bool `json:"isService"`
 		dto.AuditDto
 	}
 )

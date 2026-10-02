@@ -25,6 +25,7 @@ type row struct {
 	OperationPerformer   string     `db:"operation_performer_email"`
 	OperationTargetTable *string    `db:"operation_target_table"`
 	OperationTargetID    *uuid.UUID `db:"operation_target_id"`
+	OperationClient      string     `db:"operation_client"`
 	OperationCreatedAt   time.Time  `db:"operation_created_at"`
 }
 
@@ -43,6 +44,7 @@ func (r row) toDto() Dto {
 			PerformedBy: dto.IdEmail{Id: r.OperationPerformedBy.String(), Email: r.OperationPerformer},
 			TargetTable: r.OperationTargetTable,
 			TargetId:    uuidString(r.OperationTargetID),
+			Client:      r.OperationClient,
 			CreatedAt:   r.OperationCreatedAt,
 		},
 	}
@@ -60,7 +62,8 @@ const selectQuery = `
 	SELECT a.id, a.table_name, a.source_id, a.action, a.changed_by, a.data, a.created_at,
 		o.id AS operation_id, o.kind AS operation_kind, o.performed_by AS operation_performed_by,
 		performer.email AS operation_performer_email, o.target_table AS operation_target_table,
-		o.target_id AS operation_target_id, o.created_at AS operation_created_at
+		o.target_id AS operation_target_id, o.client AS operation_client,
+		o.created_at AS operation_created_at
 	FROM audit_history a
 	JOIN operation o ON o.id = a.operation_id
 	JOIN "user" performer ON performer.id = o.performed_by`

@@ -126,13 +126,14 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID, loggedInUserId uuid.
 	return nil
 }
 
-// guardLastAdmin returns ErrLastAdmin if id is the only live admin. It locks
+// guardLastAdmin returns ErrLastAdmin if id is the only live admin. Service
+// accounts don't count - a batch job can't administer the app. It locks
 // the live admin rows (FOR UPDATE) until tx ends, so two admins demoting or
 // deleting each other at the same moment can't both pass the check and
 // leave no admin at all.
 func guardLastAdmin(ctx context.Context, tx *sqlx.Tx, id uuid.UUID) error {
 	adminIds := []uuid.UUID{}
-	query := `SELECT id FROM "user" WHERE is_admin AND deleted_at IS NULL FOR UPDATE`
+	query := `SELECT id FROM "user" WHERE is_admin AND NOT is_service AND deleted_at IS NULL FOR UPDATE`
 	if err := tx.SelectContext(ctx, &adminIds, query); err != nil {
 		return fmt.Errorf("unable to load admins. err: %w", err)
 	}

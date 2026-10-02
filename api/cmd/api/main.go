@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,6 +24,7 @@ import (
 
 	_ "kfamily/internal/docs" // registers the generated Swagger spec
 	"kfamily/internal/services"
+	"kfamily/internal/telemetry"
 	"kfamily/internal/util"
 	"kfamily/internal/webui"
 	"kfamily/migrations"
@@ -44,10 +46,20 @@ var version = "dev"
 // contentSecurityPolicy only allows this origin's own scripts, so an
 // injected <script> can't run (and read the token in localStorage).
 // 'unsafe-inline' styles are needed for the UI components' style attributes.
-const contentSecurityPolicy = "default-src 'self'; script-src 'self'; " +
-	"style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; " +
-	"connect-src 'self'; object-src 'none'; base-uri 'self'; " +
-	"frame-ancestors 'none'; form-action 'self'"
+// connect-src also allows the collector the web app exports its traces to,
+// if one is configured (WEB_OTEL_TRACES_URL).
+func contentSecurityPolicy(env *util.AppENV) string {
+	connectSrc := "'self'"
+	if env.WebOtelTracesUrl != "" {
+		origin, _ := util.OriginOf(env.WebOtelTracesUrl) // validated at startup
+		connectSrc += " " + origin
+	}
+
+	return "default-src 'self'; script-src 'self'; " +
+		"style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; " +
+		"connect-src " + connectSrc + "; object-src 'none'; base-uri 'self'; " +
+		"frame-ancestors 'none'; form-action 'self'"
+}
 
 func main() {
 	// `kfamily healthcheck` - for the container HEALTHCHECK; the distroless
@@ -61,6 +73,27 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	//tracing - set up first, so the database driver and HTTP server below
+	//pick up the global tracer provider and propagators.
+	shutdownTelemetry, err := telemetry.Setup(ctx, env, slog.Default())
+	if err != nil {
+		log.Fatal("Error while setting up telemetry.", err)
+	}
+	defer func() {
+		// The signal context is already done here - flush on a fresh one.
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTelemetry(flushCtx); err != nil {
+			slog.Error("unable to flush traces", "err", err)
+		}
+	}()
+
+	//apps allowed to call the API (see util.ClientRegistry)
+	clients, err := util.NewClientRegistry(env.CasdoorClientId, env.ApiClients)
+	if err != nil {
+		log.Fatal("Error in API_CLIENTS.", err)
+	}
+
 	//DB open
 	db, err := openDB(ctx, env)
 	if err != nil {
@@ -71,6 +104,10 @@ func main() {
 	//migration
 	if err := migrations.Run(ctx, db.DB); err != nil {
 		log.Fatal("Error while executing migration:", err)
+	}
+
+	if err := clients.CheckServiceUsers(ctx, db); err != nil {
+		log.Fatal("Error in API_CLIENTS.", err)
 	}
 
 	//casdoor setup: tokens are verified locally against this certificate, no
@@ -91,8 +128,11 @@ func main() {
 	// can't spoof its IP (e.g. to dodge the sign-in rate limit).
 	e.IPExtractor = echo.ExtractIPFromXFFHeader()
 
-	e.Use(middleware.RequestID())
-	e.Use(middleware.RequestLogger())
+	// The trace id is the request id: it's returned in X-Trace-Id, on every
+	// log line and on every operation the request runs - one id to search
+	// by everywhere (see docs/tracing.md).
+	e.Use(requestLogger())
+	e.Use(telemetry.Middleware())
 	e.Use(middleware.Recover())
 	// Every request body here is small JSON.
 	e.Use(middleware.BodyLimit(1 << 20)) // 1 MiB
@@ -101,7 +141,7 @@ func main() {
 		ContentTypeNosniff:    "nosniff",
 		XFrameOptions:         "DENY",
 		HSTSMaxAge:            31536000, // only sent over HTTPS
-		ContentSecurityPolicy: contentSecurityPolicy,
+		ContentSecurityPolicy: contentSecurityPolicy(env),
 		ReferrerPolicy:        "strict-origin-when-cross-origin",
 		// The dev-only tool pages below use inline scripts.
 		Skipper: func(c *echo.Context) bool {
@@ -110,10 +150,10 @@ func main() {
 		},
 	}))
 	if len(env.CorsAllowedOrigins) > 0 {
-		e.Use(middleware.CORS(env.CorsAllowedOrigins...))
+		e.Use(middleware.CORSWithConfig(corsConfig(env.CorsAllowedOrigins)))
 	}
 
-	services.CreateServices(ctx, db, e, env)
+	services.CreateServices(ctx, db, e, env, clients)
 	webui.Register(e, env)
 
 	// statsviz and Swagger expose internals and are opened directly in a
@@ -128,6 +168,10 @@ func main() {
 		Address:         fmt.Sprintf(":%d", env.Port),
 		GracefulTimeout: 10 * time.Second,
 		BeforeServeFunc: func(s *http.Server) error {
+			// Outermost, so each /api request's span covers every
+			// middleware - and continues the caller's traceparent.
+			s.Handler = telemetry.HTTPHandler(s.Handler)
+
 			// Without these, slow or idle clients can hold connections open
 			// indefinitely (e.g. slowloris).
 			s.ReadHeaderTimeout = 10 * time.Second
@@ -151,10 +195,11 @@ func main() {
 }
 
 func openDB(ctx context.Context, env *util.AppENV) (*sqlx.DB, error) {
-	db, err := sqlx.Open("pgx", env.ConnectionString)
+	sqlDB, err := telemetry.OpenDB("pgx", env.ConnectionString)
 	if err != nil {
 		return nil, err
 	}
+	db := sqlx.NewDb(sqlDB, "pgx")
 
 	db.SetMaxOpenConns(env.DBMaxOpenConns)
 	db.SetMaxIdleConns(env.DBMaxIdleConns)
@@ -169,6 +214,61 @@ func openDB(ctx context.Context, env *util.AppENV) (*sqlx.DB, error) {
 	}
 
 	return db, nil
+}
+
+// corsConfig lets the browser apps on allowedOrigins (validated at startup -
+// see util.CheckOrigin) call the API. Auth is a Bearer token, not a cookie,
+// so credentials stay off. Besides the usual headers, callers may send the
+// W3C trace-context headers (so their traces continue into the API) and
+// describe themselves (util.ClientVersionHeader etc.); X-Trace-Id is exposed
+// so they can show it in error messages.
+func corsConfig(allowedOrigins []string) middleware.CORSConfig {
+	return middleware.CORSConfig{
+		AllowOrigins: allowedOrigins,
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
+		AllowHeaders: []string{
+			"Authorization", "Content-Type", "Accept",
+			"traceparent", "tracestate", "baggage",
+			util.ClientVersionHeader, util.ClientPlatformHeader,
+		},
+		ExposeHeaders: []string{telemetry.TraceIDHeader},
+		// Browsers cap this (Chrome at 2h); saves a preflight per request.
+		MaxAge: 7200,
+	}
+}
+
+// requestLogger logs one line per request. Its logger is the request's own
+// (see telemetry.Middleware), so the line carries trace_id/span_id.
+func requestLogger() echo.MiddlewareFunc {
+	return middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogLatency:   true,
+		LogRemoteIP:  true,
+		LogMethod:    true,
+		LogURI:       true,
+		LogRoutePath: true,
+		LogUserAgent: true,
+		LogStatus:    true,
+		// Forward errors to the global error handler, so it sets the status.
+		HandleError: true,
+		LogValuesFunc: func(c *echo.Context, v middleware.RequestLoggerValues) error {
+			level, msg := slog.LevelInfo, "REQUEST"
+			attrs := []slog.Attr{
+				slog.String("method", v.Method),
+				slog.String("uri", v.URI),
+				slog.String("route", v.RoutePath),
+				slog.Int("status", v.Status),
+				slog.Duration("latency", v.Latency),
+				slog.String("remote_ip", v.RemoteIP),
+				slog.String("user_agent", v.UserAgent),
+			}
+			if v.Error != nil {
+				level, msg = slog.LevelError, "REQUEST_ERROR"
+				attrs = append(attrs, slog.String("error", v.Error.Error()))
+			}
+			c.Logger().LogAttrs(c.Request().Context(), level, msg, attrs...)
+			return nil
+		},
+	})
 }
 
 // healthcheck asks this container's own server whether it's ready (the

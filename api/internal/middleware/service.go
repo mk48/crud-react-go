@@ -31,6 +31,17 @@ func (mw *Middleware) GetUserByEmail(ctx context.Context, email string) (*model.
 	return &dest, nil
 }
 
+// GetUserByID looks up a user (deleted or not) by primary key.
+func (mw *Middleware) GetUserByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
+	var dest model.User
+	query := `SELECT * FROM "user" WHERE id = $1`
+	if err := mw.db.GetContext(ctx, &dest, query, id); err != nil {
+		return nil, fmt.Errorf("unable to get user by id. Err: %w", err)
+	}
+
+	return &dest, nil
+}
+
 // GetUserBySub looks up a user by their Casdoor subject (sub) claim, which is the
 // stable, immutable identifier for a user - unlike email, which a user can change.
 func (mw *Middleware) GetUserBySub(ctx context.Context, sub string) (*model.User, error) {

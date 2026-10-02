@@ -15,6 +15,7 @@ type User struct {
 	Email     string     `db:"email"`
 	Name      *string    `db:"name"`
 	IsAdmin   bool       `db:"is_admin"`
+	IsService bool       `db:"is_service"`
 	CreatedAt time.Time  `db:"created_at"`
 	CreatedBy uuid.UUID  `db:"created_by"`
 	UpdatedAt *time.Time `db:"updated_at"`

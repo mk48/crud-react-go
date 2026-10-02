@@ -1,9 +1,12 @@
 import DisplayTime from "@/components/DisplayTime"
 import SnapshotDiff from "@/components/diff/snapshot-diff"
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
+import { traceUrl } from "@/lib/runtime-config"
 import { cn } from "@/lib/utils"
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
+import ClientBadge from "./client-badge"
+import KeyValueList from "./key-value-list"
 import { operationKindLabel, tableLabel } from "./labels"
 import RecordLink from "./record-link"
 import type { OperationChangeDto, OperationDetailDto } from "./types"
@@ -26,11 +29,25 @@ const OperationView: React.FC<props> = ({ data }) => {
   const targetDeleted = data.changes.some(
     (c) => c.sourceId === data.targetId && c.sourceDeleted
   )
-  const metadata = Object.entries(data.metadata ?? {})
+  const metadata = data.metadata ?? {}
+  const clientInfo = data.clientInfo ?? {}
+  const link = data.traceId ? traceUrl(data.traceId) : undefined
 
   const fields: { label: string; value: ReactNode }[] = [
     { label: t("operation.operation"), value: operationKindLabel(data.kind) },
     { label: t("operation.performed-by"), value: data.performedBy.email },
+    {
+      label: t("operation.source"),
+      value: <ClientBadge client={data.client} />,
+    },
+    ...(Object.keys(clientInfo).length > 0
+      ? [
+          {
+            label: t("operation.client-info"),
+            value: <KeyValueList values={clientInfo} />,
+          },
+        ]
+      : []),
     {
       label: t("operation.performed-at"),
       value: <DisplayTime time={data.createdAt} />,
@@ -51,28 +68,34 @@ const OperationView: React.FC<props> = ({ data }) => {
           "-"
         ),
     },
-    ...(metadata.length > 0
+    ...(Object.keys(metadata).length > 0
       ? [
           {
             label: t("operation.details"),
-            value: (
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4">
-                {metadata.map(([key, value]) => (
-                  <div key={key} className="contents">
-                    <dt className="text-muted-foreground">{key}</dt>
-                    <dd className="break-all">
-                      {typeof value === "string"
-                        ? value
-                        : JSON.stringify(value)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            ),
+            value: <KeyValueList values={metadata} />,
           },
         ]
       : []),
     { label: t("operation.changes"), value: data.changeCount },
+    {
+      label: t("operation.trace-id"),
+      value: data.traceId ? (
+        link ? (
+          <a
+            href={link}
+            target="_blank"
+            rel="noreferrer"
+            className="font-mono text-xs text-primary underline-offset-4 hover:underline"
+          >
+            {data.traceId}
+          </a>
+        ) : (
+          <span className="font-mono text-xs select-all">{data.traceId}</span>
+        )
+      ) : (
+        "-"
+      ),
+    },
   ]
 
   return (

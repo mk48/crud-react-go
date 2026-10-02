@@ -19,6 +19,9 @@ type row struct {
 	TargetTable      *string         `db:"target_table"`
 	TargetID         *uuid.UUID      `db:"target_id"`
 	Metadata         json.RawMessage `db:"metadata"`
+	Client           string          `db:"client"`
+	ClientInfo       json.RawMessage `db:"client_info"`
+	TraceID          *string         `db:"trace_id"`
 	CreatedAt        time.Time       `db:"created_at"`
 	ChangeCount      int             `db:"change_count"`
 }
@@ -30,6 +33,9 @@ func (r row) toDto() Dto {
 		PerformedBy: dto.IdEmail{Id: r.PerformedBy.String(), Email: r.PerformedByEmail},
 		TargetTable: r.TargetTable,
 		Metadata:    r.Metadata,
+		Client:      r.Client,
+		ClientInfo:  r.ClientInfo,
+		TraceId:     r.TraceID,
 		CreatedAt:   r.CreatedAt,
 		ChangeCount: r.ChangeCount,
 	}
@@ -44,7 +50,7 @@ func (r row) toDto() Dto {
 // util.AdvancedQuery require.
 const selectQuery = `
 	SELECT o.id, o.kind, o.performed_by, performer.email AS performed_by_email,
-		o.target_table, o.target_id, o.metadata, o.created_at,
+		o.target_table, o.target_id, o.metadata, o.client, o.client_info, o.trace_id, o.created_at,
 		(SELECT COUNT(*) FROM audit_history a WHERE a.operation_id = o.id) AS change_count
 	FROM operation o
 	JOIN "user" performer ON performer.id = o.performed_by `

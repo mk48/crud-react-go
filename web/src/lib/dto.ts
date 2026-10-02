@@ -58,6 +58,8 @@ export interface OperationSummary {
   performedBy: IdEmail
   targetTable: string | null
   targetId: string | null
+  // The app it came from (web, mobile, admin, batch:<job>, system).
+  client: string
   createdAt: string
 }
 

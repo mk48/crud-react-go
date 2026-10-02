@@ -1,0 +1,48 @@
+# OpenTelemetry Collector for local development (see docker-compose.yml and
+# docs/tracing.md).
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        # The browser exports its spans straight here, so this receiver
+        # needs CORS for the web app's origins: Vite in dev, and the API
+        # serving the built app.
+        cors:
+          allowed_origins:
+            - http://localhost:5173
+            - http://localhost:8080
+          allowed_headers: ["*"]
+          max_age: 7200
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+  # Spans are personal data too (the API records the client IP on HTTP
+  # spans). Drop or hash such attributes here before they're stored -
+  # e.g. with the attributes processor:
+  #   attributes:
+  #     actions:
+  #       - key: client.address
+  #         action: delete
+  batch: {}
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  # Uncomment to also print every span in `docker compose logs`.
+  # debug:
+  #   verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/jaeger]

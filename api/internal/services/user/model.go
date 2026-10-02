@@ -11,23 +11,25 @@ import (
 // it joins in the creator's, updater's and deleter's email and the response
 // can embed a full IdEmail without an N+1 lookup per row.
 type row struct {
-	ID      uuid.UUID `db:"id"`
-	Sub     string    `db:"sub"`
-	Email   string    `db:"email"`
-	Name    *string   `db:"name"`
-	IsAdmin bool      `db:"is_admin"`
+	ID        uuid.UUID `db:"id"`
+	Sub       string    `db:"sub"`
+	Email     string    `db:"email"`
+	Name      *string   `db:"name"`
+	IsAdmin   bool      `db:"is_admin"`
+	IsService bool      `db:"is_service"`
 
 	model.AuditRow
 }
 
 func (r row) toDto() Dto {
 	return Dto{
-		Id:       r.ID.String(),
-		Sub:      r.Sub,
-		Email:    r.Email,
-		Name:     r.Name,
-		IsAdmin:  r.IsAdmin,
-		AuditDto: r.AuditRow.ToDto(),
+		Id:        r.ID.String(),
+		Sub:       r.Sub,
+		Email:     r.Email,
+		Name:      r.Name,
+		IsAdmin:   r.IsAdmin,
+		IsService: r.IsService,
+		AuditDto:  r.AuditRow.ToDto(),
 	}
 }
 
@@ -35,7 +37,7 @@ func (r row) toDto() Dto {
 // scan them directly. It reads through whatever alias "u" is bound to, so
 // the same columns work whether u is the user table itself or a RETURNING
 // CTE from an update (see service.go).
-var selectColumns = `u.id, u.sub, u.email, u.name, u.is_admin, ` + util.AuditSelectColumns("u")
+var selectColumns = `u.id, u.sub, u.email, u.name, u.is_admin, u.is_service, ` + util.AuditSelectColumns("u")
 
 // selectJoins brings in the creator/updater/deleter emails needed by
 // selectColumns. This is a self-join back onto the user table (aliased under

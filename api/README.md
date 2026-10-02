@@ -35,7 +35,11 @@ Copy `.env-sample` to `.env` and fill in real values before running:
 | `PORT` | Listen port (default `8080`) |
 | `CONNECTION_STRING` | Postgres connection string |
 | `DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` / `DB_CONN_MAX_LIFETIME` / `DB_CONN_MAX_IDLE_TIME` | Connection pool (defaults `20` / `5` / `30m` / `5m`) |
-| `CORS_ALLOWED_ORIGINS` | Optional, comma-separated - only for callers on another origin |
+| `CORS_ALLOWED_ORIGINS` | Optional, comma-separated - other *browser* apps' origins (no `*`); native apps and batch jobs need none |
+| `API_CLIENTS` | Optional JSON array of apps besides the web app (mobile, admin, batch jobs) - see [docs/tracing.md](../docs/tracing.md) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` (and other standard `OTEL_*`) | Optional - export traces over OTLP/HTTP |
+| `WEB_OTEL_TRACES_URL` / `WEB_OTEL_SAMPLE_RATIO` | Optional - where the browser exports its spans, and its sampling ratio (default `1`) |
+| `TRACE_URL_TEMPLATE` | Optional - link from a trace id to your tracing UI, e.g. `http://localhost:16686/trace/{traceId}` |
 | `CASDOOR_ENDPOINT` | Casdoor server URL |
 | `CASDOOR_CLIENT_ID` / `CASDOOR_CLIENT_SECRET` | Casdoor application credentials |
 | `CASDOOR_ORGANIZATION_NAME` / `CASDOOR_APPLICATION_NAME` | Casdoor organization/application names |
@@ -63,6 +67,15 @@ at runtime (`GET /config.js`) - it has no configuration of its own.
 
 Most resources follow the same CRUD + audit-history + soft-delete shape; see
 `internal/services/*` for the per-table service packages.
+
+## Operations and tracing
+
+Every write runs inside an *operation* (`util.RunOperation`) recording who
+did it, from which app (`client`, verified from the access token) and the
+request's OpenTelemetry trace id. The trace id is also returned as
+`X-Trace-Id` and is on every log line. See
+[docs/tracing.md](../docs/tracing.md) for how it fits together, how to add
+an app (mobile, admin, batch job) and how to run a local trace viewer.
 
 ## Dev tools (`ENV=dev` only)
 

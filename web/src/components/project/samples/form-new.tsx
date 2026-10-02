@@ -51,6 +51,7 @@ const SamplesNewForm: React.FC<props> = ({ onCreated }) => {
       <MutationFeedback
         isSuccess={mutation.isSuccess}
         isError={mutation.isError}
+        error={mutation.error}
         successMessage={t("create-success")}
         errorMessage={t("create-failed")}
       />

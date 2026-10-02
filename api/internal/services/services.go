@@ -16,9 +16,9 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func CreateServices(ctx context.Context, db *sqlx.DB, echo *echo.Echo, envs *util.AppENV) {
+func CreateServices(ctx context.Context, db *sqlx.DB, echo *echo.Echo, envs *util.AppENV, clients *util.ClientRegistry) {
 
-	m := middleware.NewMiddleware(db, envs)
+	m := middleware.NewMiddleware(db, envs, clients)
 
 	healthcheck.Init(echo, envs, db)
 

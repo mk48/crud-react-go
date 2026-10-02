@@ -5,6 +5,15 @@
 export interface RuntimeConfig {
   casdoorEndpoint: string
   casdoorClientId: string
+  // The API's version - this app is embedded in it, so it's ours too.
+  version: string
+  // Browser tracing (see lib/telemetry.ts): the OTLP/HTTP traces URL to
+  // export spans to (none: spans are only propagated, not exported) and the
+  // share of traces to sample.
+  otelTracesUrl?: string
+  otelSampleRatio?: number
+  // Link to a trace in the tracing UI, with {traceId} as placeholder.
+  traceUrlTemplate?: string
 }
 
 declare global {
@@ -21,4 +30,12 @@ export function runtimeConfig(): RuntimeConfig {
     )
   }
   return config
+}
+
+/** The tracing UI's page for traceId, if TRACE_URL_TEMPLATE is set. */
+export function traceUrl(traceId: string): string | undefined {
+  return window.__KFAMILY_CONFIG__?.traceUrlTemplate?.replace(
+    "{traceId}",
+    encodeURIComponent(traceId)
+  )
 }

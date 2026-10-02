@@ -1,0 +1,30 @@
+# Local trace viewer for KFamily (see docs/tracing.md):
+#   docker compose up -d     (from this folder)
+# then, in api/.env:
+#   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+#   WEB_OTEL_TRACES_URL=http://localhost:4318/v1/traces
+#   TRACE_URL_TEMPLATE=http://localhost:16686/trace/{traceId}
+# and open Jaeger at http://localhost:16686.
+#
+# Images are unpinned for local use - pin versions before using this as the
+# base for a real deployment.
+services:
+  # Receives OTLP from the API and the browser, batches it and forwards it
+  # to Jaeger. In production the same collector is where sampling, filtering
+  # and removing personal data happen - the apps only ever talk to it.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP (API and browser)
+    depends_on:
+      - jaeger
+
+  # Stores traces in memory and shows them - restart and they're gone.
+  jaeger:
+    image: jaegertracing/jaeger:latest
+    ports:
+      - "16686:16686" # UI

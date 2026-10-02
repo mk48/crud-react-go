@@ -7,13 +7,15 @@ import (
 )
 
 type Middleware struct {
-	db  *sqlx.DB
-	env *util.AppENV
+	db      *sqlx.DB
+	env     *util.AppENV
+	clients *util.ClientRegistry
 }
 
-func NewMiddleware(db *sqlx.DB, env *util.AppENV) *Middleware {
+func NewMiddleware(db *sqlx.DB, env *util.AppENV, clients *util.ClientRegistry) *Middleware {
 	return &Middleware{
-		db:  db,
-		env: env,
+		db:      db,
+		env:     env,
+		clients: clients,
 	}
 }

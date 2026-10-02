@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Operation describes one user action that writes data - see the operation
@@ -37,6 +39,12 @@ type operationCtxKey struct{}
 // audit_history row written under it. The operation, the data changes and
 // their audit records all commit or roll back together.
 //
+// ctx must carry the RequestSource the operation comes from (set by
+// AuthMiddleware for requests, SystemContext for the API's own tasks) - its
+// client, client info and the current trace id are recorded with it, and
+// the operation's id/kind are added to the current span, so a trace and the
+// operations it caused can be found from each other.
+//
 // Operations don't nest: fn must use the tx it's given, not call another
 // service method that would start its own operation (and transaction).
 func RunOperation(ctx context.Context, db *sqlx.DB, op Operation, fn func(ctx context.Context, tx *sqlx.Tx) error) error {
@@ -46,6 +54,10 @@ func RunOperation(ctx context.Context, db *sqlx.DB, op Operation, fn func(ctx co
 	if op.Kind == "" {
 		return errors.New("operation kind is required")
 	}
+	src, ok := requestSource(ctx)
+	if !ok || src.Client == "" {
+		return fmt.Errorf("operation %s has no request source - run it within an authenticated request or util.SystemContext", op.Kind)
+	}
 
 	metadata := op.Metadata
 	if metadata == nil {
@@ -54,6 +66,21 @@ func RunOperation(ctx context.Context, db *sqlx.DB, op Operation, fn func(ctx co
 	metadataJson, err := json.Marshal(metadata)
 	if err != nil {
 		return fmt.Errorf("unable to encode operation metadata. err: %w", err)
+	}
+	clientInfo := src.Info
+	if clientInfo == nil {
+		clientInfo = map[string]any{}
+	}
+	clientInfoJson, err := json.Marshal(clientInfo)
+	if err != nil {
+		return fmt.Errorf("unable to encode operation client info. err: %w", err)
+	}
+
+	span := trace.SpanFromContext(ctx)
+	var traceID *string
+	if sc := span.SpanContext(); sc.IsValid() {
+		id := sc.TraceID().String()
+		traceID = &id
 	}
 
 	var targetTable *string
@@ -65,11 +92,16 @@ func RunOperation(ctx context.Context, db *sqlx.DB, op Operation, fn func(ctx co
 	}
 
 	id := uuid.New()
+	span.SetAttributes(
+		attribute.String("kfamily.operation.id", id.String()),
+		attribute.String("kfamily.operation.kind", op.Kind),
+		attribute.String("kfamily.client", src.Client),
+	)
 
 	return WithTx(ctx, db, func(tx *sqlx.Tx) error {
 		_, err := tx.NamedExecContext(ctx, `
-			INSERT INTO operation (id, kind, performed_by, target_table, target_id, metadata, created_at)
-			VALUES (:id, :kind, :performed_by, :target_table, :target_id, :metadata, clock_timestamp())`,
+			INSERT INTO operation (id, kind, performed_by, target_table, target_id, metadata, client, client_info, trace_id, created_at)
+			VALUES (:id, :kind, :performed_by, :target_table, :target_id, :metadata, :client, :client_info, :trace_id, clock_timestamp())`,
 			map[string]any{
 				"id":           id,
 				"kind":         op.Kind,
@@ -77,6 +109,9 @@ func RunOperation(ctx context.Context, db *sqlx.DB, op Operation, fn func(ctx co
 				"target_table": targetTable,
 				"target_id":    targetID,
 				"metadata":     string(metadataJson),
+				"client":       src.Client,
+				"client_info":  string(clientInfoJson),
+				"trace_id":     traceID,
 			})
 		if err != nil {
 			return fmt.Errorf("unable to record operation %s. err: %w", op.Kind, err)

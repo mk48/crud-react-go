@@ -1,4 +1,5 @@
 import ConfirmDialog from "@/components/ConfirmDialog"
+import ErrorReference from "@/components/ErrorReference"
 import { Button } from "@/components/ui/button"
 import { useMutation } from "@tanstack/react-query"
 import type { UseMutationOptions } from "@tanstack/react-query"
@@ -39,8 +40,10 @@ const DeleteResourceButton: React.FC<props> = ({
       )
       deletedSuccessfully()
     },
-    onError: () => {
-      toast.error(t(`${translationNamespace}.delete-failed`, { Name: name }))
+    onError: (error) => {
+      toast.error(t(`${translationNamespace}.delete-failed`, { Name: name }), {
+        description: <ErrorReference error={error} />,
+      })
     },
   })
 

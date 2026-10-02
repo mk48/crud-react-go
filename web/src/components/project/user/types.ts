@@ -6,6 +6,8 @@ export interface UserDto extends AuditColumn {
   email: string
   name: string | null
   isAdmin: boolean
+  // A service account (batch job, system) - never signs in.
+  isService: boolean
 }
 
 // Users have no Create - they're provisioned automatically by the auth

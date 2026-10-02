@@ -2,6 +2,7 @@ import {
   operationKindLabel,
   tableLabel,
 } from "@/components/project/operations/labels"
+import ClientBadge from "@/components/project/operations/client-badge"
 import RecordLink from "@/components/project/operations/record-link"
 import type { OperationSummary } from "@/lib/dto"
 import { cn } from "@/lib/utils"
@@ -53,6 +54,7 @@ const OperationCause: React.FC<props> = ({ operation, sourceId }) => {
           </RecordLink>
         </>
       )}
+      <ClientBadge client={operation.client} className="ml-1" />
     </div>
   )
 }

@@ -20,6 +20,13 @@ import (
 type runtimeConfig struct {
 	CasdoorEndpoint string `json:"casdoorEndpoint"`
 	CasdoorClientId string `json:"casdoorClientId"`
+	// The app is embedded in this binary, so its version is the API's -
+	// sent back as X-Client-Version.
+	Version string `json:"version"`
+	// Browser tracing - see docs/tracing.md and AppENV.WebOtel*.
+	OtelTracesUrl    string  `json:"otelTracesUrl,omitempty"`
+	OtelSampleRatio  float64 `json:"otelSampleRatio"`
+	TraceUrlTemplate string  `json:"traceUrlTemplate,omitempty"`
 }
 
 // Register adds GET /config.js and, when the web app is embedded, serves it
@@ -39,8 +46,12 @@ func Register(e *echo.Echo, env *util.AppENV) {
 func configHandler(env *util.AppENV) echo.HandlerFunc {
 	// json.Marshal escapes <, > and & - safe to embed in a script.
 	body, err := json.Marshal(runtimeConfig{
-		CasdoorEndpoint: env.CasdoorEndpoint,
-		CasdoorClientId: env.CasdoorClientId,
+		CasdoorEndpoint:  env.CasdoorEndpoint,
+		CasdoorClientId:  env.CasdoorClientId,
+		Version:          env.Version,
+		OtelTracesUrl:    env.WebOtelTracesUrl,
+		OtelSampleRatio:  env.WebOtelSampleRatio,
+		TraceUrlTemplate: env.TraceUrlTemplate,
 	})
 	if err != nil {
 		panic(err) // plain strings - can't fail

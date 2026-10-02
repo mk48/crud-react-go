@@ -12,6 +12,13 @@ export interface OperationDto {
   targetTable: string | null
   targetId: string | null
   metadata: Record<string, unknown>
+  // The app it came from - "web", "mobile", "admin", "batch:<job>",
+  // "system" - verified from the access token.
+  client: string
+  // What the app reported about itself (version, platform, ip, userAgent).
+  clientInfo: Record<string, unknown>
+  // W3C trace id of the request/task that ran it.
+  traceId: string | null
   createdAt: string
   changeCount: number
 }

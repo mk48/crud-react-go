@@ -1,4 +1,5 @@
 import ErrorMessage from "@/components/ErrorMessage"
+import ErrorReference from "@/components/ErrorReference"
 import type { QueryKey, UseQueryOptions } from "@tanstack/react-query"
 import { useQuery } from "@tanstack/react-query"
 import type { ReactNode } from "react"
@@ -27,7 +28,7 @@ export default function QueryBoundary<TData, TQueryKey extends QueryKey>({
   errorFallback,
 }: props<TData, TQueryKey>) {
   const { t } = useTranslation()
-  const { data, isLoading, isError } = useQuery(query)
+  const { data, isLoading, isError, error } = useQuery(query)
 
   if (isLoading) {
     return <>{loadingFallback ?? <Spinner />}</>
@@ -37,7 +38,10 @@ export default function QueryBoundary<TData, TQueryKey extends QueryKey>({
     return (
       <>
         {errorFallback ?? (
-          <ErrorMessage title="Error!">{t("err-loading-data")}</ErrorMessage>
+          <ErrorMessage title="Error!">
+            {t("err-loading-data")}
+            <ErrorReference error={error} />
+          </ErrorMessage>
         )}
       </>
     )

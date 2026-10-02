@@ -30,6 +30,8 @@ type (
 		PerformedBy dto.IdEmail `json:"performedBy"`
 		TargetTable *string     `json:"targetTable"`
 		TargetId    *string     `json:"targetId"`
-		CreatedAt   time.Time   `json:"createdAt"`
+		// The app it came from (see operation.Dto.Client).
+		Client    string    `json:"client"`
+		CreatedAt time.Time `json:"createdAt"`
 	}
 )

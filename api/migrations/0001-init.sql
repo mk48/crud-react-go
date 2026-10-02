@@ -21,6 +21,10 @@ CREATE TABLE "user" (
   email       varchar(254) NOT NULL UNIQUE CHECK (email = lower(email)),
   name        varchar(100) NULL CHECK (name IS NULL OR length(btrim(name)) > 0),
   is_admin    boolean NOT NULL DEFAULT FALSE,
+  -- Service accounts act for an API client that has no signed-in user (a
+  -- batch job, the API's own internal tasks - see util.ClientRegistry).
+  -- They can never sign in interactively (see middleware.AuthMiddleware).
+  is_service  boolean NOT NULL DEFAULT FALSE,
 
   created_at  timestamptz NOT NULL DEFAULT now(),
   created_by  uuid NOT NULL REFERENCES "user"(id),
@@ -42,6 +46,12 @@ CREATE INDEX idx_user_email_trgm ON "user" USING gin (email gin_trgm_ops);
 INSERT INTO "user" (id, sub, email, name, is_admin, created_at, created_by) VALUES
   ('8e4d4b2a-8dc3-4d73-bfee-7d6032ec2212', 'system', 'kumaran.veera@outlook.com', 'Kumaran', TRUE, now(), '8e4d4b2a-8dc3-4d73-bfee-7d6032ec2212');
 
+-- Service account for work the API does on its own (scheduled/startup
+-- tasks - see util.SystemContext), so it's never attributed to a person.
+-- Its sub isn't a Casdoor id, so no sign-in can ever resolve to it.
+INSERT INTO "user" (id, sub, email, name, is_admin, is_service, created_at, created_by) VALUES
+  ('00000000-0000-0000-0000-000000000001', 'service:system', 'system@kfamily.internal', 'System', FALSE, TRUE, now(), '00000000-0000-0000-0000-000000000001');
+
 -- One row per user action that writes data - a form save, an import, a
 -- button that updates several tables. Every audit_history row points at the
 -- operation that caused it, so a record's history can say *why* it changed
@@ -62,6 +72,17 @@ CREATE TABLE operation (
   target_id     uuid NULL,
   -- Free-form context, e.g. an import's file name and row count.
   metadata      jsonb NOT NULL DEFAULT '{}',
+  -- The app the operation came from: 'web', 'mobile', 'admin',
+  -- 'batch:<job>', 'system'. Verified - taken from the access token's
+  -- Casdoor application (see util.ClientRegistry), never from a header.
+  client        varchar(100) NOT NULL CHECK (length(btrim(client)) > 0),
+  -- What the caller reports about itself (app version, platform, IP, user
+  -- agent). Useful hints, not proof.
+  client_info   jsonb NOT NULL DEFAULT '{}',
+  -- W3C trace id (32 lower-case hex) of the request/task that ran it - the
+  -- link to its OpenTelemetry trace and logs. NULL only if it ran outside
+  -- any trace.
+  trace_id      char(32) NULL CHECK (trace_id ~ '^[0-9a-f]{32}$'),
   created_at    timestamptz NOT NULL DEFAULT now(),
 
   CONSTRAINT chk_operation_target_pair CHECK ((target_table IS NULL) = (target_id IS NULL))
@@ -70,6 +91,10 @@ CREATE TABLE operation (
 CREATE INDEX idx_operation_created_at ON operation (created_at, id);
 -- "Everything user X did".
 CREATE INDEX idx_operation_performed_by ON operation (performed_by, created_at DESC);
+-- "Everything done from the mobile app".
+CREATE INDEX idx_operation_client ON operation (client, created_at DESC);
+-- From a trace (or a log line's trace_id) back to what it changed.
+CREATE INDEX idx_operation_trace_id ON operation (trace_id);
 CREATE INDEX idx_operation_kind_trgm ON operation USING gin (kind gin_trgm_ops);
 
 -- One row per create/update/delete of any audited table (see

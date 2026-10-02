@@ -36,16 +36,40 @@ func (mw *Middleware) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return c.JSON(http.StatusUnauthorized, util.HttpError(err, "Unauthorized. Can't verify token"))
 		}
 
-		if err := mw.validateClaims(claims); err != nil {
+		client, err := mw.validateClaims(claims)
+		if err != nil {
 			return c.JSON(http.StatusUnauthorized, util.HttpError(err, "Unauthorized. Token not valid for this application"))
+		}
+
+		// Which app this request comes from, for every operation it runs
+		// (see util.RunOperation) - set before anything below can write,
+		// e.g. provisioning a first-time user.
+		ctx := util.WithRequestSource(c.Request().Context(), util.RequestSource{
+			Client: client.Name,
+			Info:   clientInfo(c),
+		})
+		c.SetRequest(c.Request().WithContext(ctx))
+
+		// A batch job's token (client-credentials grant) has no signed-in
+		// user - it acts as its client's service account.
+		if client.IsService() {
+			serviceUser, err := mw.GetUserByID(ctx, *client.ServiceUserID)
+			if err != nil {
+				c.Logger().Error("unable to load service account", "client", client.Name, "err", err)
+				return c.JSON(http.StatusInternalServerError, util.HttpError(err, "Unable to load the client's service account"))
+			}
+			if !serviceUser.IsService || serviceUser.DeletedAt != nil {
+				return c.JSON(http.StatusForbidden, util.HttpErrorMessage("Forbidden. Client's service account is not active"))
+			}
+
+			c.Set("user", serviceUser)
+			return next(c)
 		}
 
 		sub := claims.User.Id
 		if sub == "" {
 			return c.JSON(http.StatusUnauthorized, util.HttpErrorMessage("Unauthorized. Token missing subject"))
 		}
-
-		ctx := c.Request().Context()
 
 		dbUser, err := mw.GetUserBySub(ctx, sub)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -66,6 +90,11 @@ func (mw *Middleware) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 				// here rather than failing the sub update below.
 				if existingUser.DeletedAt != nil {
 					return c.JSON(http.StatusForbidden, util.HttpErrorMessage("Forbidden. User account is deleted"))
+				}
+				// A Casdoor user sharing a service account's email must not
+				// take it over.
+				if existingUser.IsService {
+					return c.JSON(http.StatusForbidden, util.HttpErrorMessage("Forbidden. Service accounts can't sign in"))
 				}
 				dbUser, err = mw.UpdateUserSub(ctx, existingUser, sub)
 				if err != nil {
@@ -104,6 +133,9 @@ func (mw *Middleware) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		if dbUser.DeletedAt != nil {
 			return c.JSON(http.StatusForbidden, util.HttpErrorMessage("Forbidden. User account is deleted"))
 		}
+		if dbUser.IsService {
+			return c.JSON(http.StatusForbidden, util.HttpErrorMessage("Forbidden. Service accounts can't sign in"))
+		}
 
 		// set user in context
 		c.Set("user", dbUser)
@@ -114,25 +146,60 @@ func (mw *Middleware) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 // validateClaims checks that a signature-verified token was issued by our
-// Casdoor, for this application, as an access token. ParseJwtToken only
-// verifies the signature and expiry - and Casdoor applications commonly
-// share the built-in signing certificate - so a validly signed token could
-// otherwise belong to a different application, or be a (long-lived)
-// refresh token presented as an access token.
-func (mw *Middleware) validateClaims(claims *casdoorsdk.Claims) error {
+// Casdoor, as an access token, to one of the registered apps (see
+// util.ClientRegistry) - and returns that app. ParseJwtToken only verifies
+// the signature and expiry - and Casdoor applications commonly share the
+// built-in signing certificate - so a validly signed token could otherwise
+// belong to an unrelated application, or be a (long-lived) refresh token
+// presented as an access token.
+func (mw *Middleware) validateClaims(claims *casdoorsdk.Claims) (util.Client, error) {
 	if claims.TokenType != "access-token" {
-		return fmt.Errorf("unexpected token type %q", claims.TokenType)
-	}
-
-	if !claims.VerifyAudience(mw.env.CasdoorClientId, true) {
-		return fmt.Errorf("token audience %v does not match this application", claims.Audience)
+		return util.Client{}, fmt.Errorf("unexpected token type %q", claims.TokenType)
 	}
 
 	if strings.TrimSuffix(claims.Issuer, "/") != strings.TrimSuffix(mw.env.CasdoorEndpoint, "/") {
-		return fmt.Errorf("unexpected token issuer %q", claims.Issuer)
+		return util.Client{}, fmt.Errorf("unexpected token issuer %q", claims.Issuer)
 	}
 
-	return nil
+	// azp ("authorized party") names the application the token was issued
+	// to; fall back to the audience when Casdoor leaves it out.
+	if claims.Azp != "" {
+		if client, ok := mw.clients.Lookup(claims.Azp); ok {
+			return client, nil
+		}
+		return util.Client{}, fmt.Errorf("token was issued to unregistered application %q", claims.Azp)
+	}
+	for _, aud := range claims.Audience {
+		if client, ok := mw.clients.Lookup(aud); ok {
+			return client, nil
+		}
+	}
+
+	return util.Client{}, fmt.Errorf("token audience %v is not a registered application", claims.Audience)
+}
+
+// clientInfo is what the caller reports about itself (see
+// util.RequestSource.Info) - capped in length, since it's caller-controlled
+// and stored on every operation.
+func clientInfo(c *echo.Context) map[string]any {
+	info := map[string]any{
+		"ip":        c.RealIP(),
+		"userAgent": truncate(c.Request().UserAgent(), 256),
+	}
+	if v := c.Request().Header.Get(util.ClientVersionHeader); v != "" {
+		info["version"] = truncate(v, 64)
+	}
+	if p := c.Request().Header.Get(util.ClientPlatformHeader); p != "" {
+		info["platform"] = truncate(p, 32)
+	}
+	return info
+}
+
+func truncate(s string, max int) string {
+	if r := []rune(s); len(r) > max {
+		return string(r[:max])
+	}
+	return s
 }
 
 // AdminMiddleware restricts access to admin users. It must run after

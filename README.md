@@ -17,6 +17,11 @@ Open http://localhost:5173. With `ENV=dev` the API also serves Swagger UI at
 http://localhost:8080/swagger/index.html and runtime stats at
 http://localhost:8080/kfamily-debug/statsviz/.
 
+To see traces locally, start the collector and Jaeger in
+[deploy/otel/](deploy/otel/) (`docker compose up -d`) and set the `OTEL_*`
+variables shown in [api/.env-sample](api/.env-sample) - see
+[docs/tracing.md](docs/tracing.md).
+
 ## Build and deploy
 
 ```bash

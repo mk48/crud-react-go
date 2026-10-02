@@ -19,7 +19,15 @@ type (
 		TargetTable *string         `json:"targetTable"`
 		TargetId    *string         `json:"targetId"`
 		Metadata    json.RawMessage `json:"metadata" swaggertype:"object"`
-		CreatedAt   time.Time       `json:"createdAt"`
+		// The app it came from (web, mobile, admin, batch:<job>, system) -
+		// verified from the access token.
+		Client string `json:"client"`
+		// What the app reported about itself (version, platform, ip,
+		// userAgent) - hints, not proof.
+		ClientInfo json.RawMessage `json:"clientInfo" swaggertype:"object"`
+		// W3C trace id of the request/task that ran it.
+		TraceId   *string   `json:"traceId"`
+		CreatedAt time.Time `json:"createdAt"`
 		// Number of audit_history rows (record changes) it caused.
 		ChangeCount int `json:"changeCount"`
 	}

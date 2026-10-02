@@ -25,7 +25,16 @@ export const columns = [
         </ToggleSortColumnHeader>
       )
     },
-    cell: (info) => info.getValue() || "-",
+    cell: (info) => (
+      <span className="flex items-center gap-2">
+        {info.getValue() || "-"}
+        {info.row.original.isService && (
+          <span className="rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+            {i18next.t("user.service-account")}
+          </span>
+        )}
+      </span>
+    ),
   }),
   // ----------------- Column: Email ---------------------------
   columnHelper.accessor("email", {

@@ -156,7 +156,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "One page of operations (user actions that wrote data), optionally narrowed by a free-text search over kind and target table.",
+                "description": "One page of operations (user actions that wrote data), optionally narrowed by a free-text search over kind, target table and client (app).",
                 "produces": [
                     "application/json"
                 ],
@@ -2161,6 +2161,10 @@ const docTemplate = `{
         "services_audithistory.OperationDto": {
             "type": "object",
             "properties": {
+                "client": {
+                    "description": "The app it came from (see operation.Dto.Client).",
+                    "type": "string"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -2265,6 +2269,14 @@ const docTemplate = `{
                         "$ref": "#/definitions/services_operation.ChangeDto"
                     }
                 },
+                "client": {
+                    "description": "The app it came from (web, mobile, admin, batch:\u003cjob\u003e, system) -\nverified from the access token.",
+                    "type": "string"
+                },
+                "clientInfo": {
+                    "description": "What the app reported about itself (version, platform, ip,\nuserAgent) - hints, not proof.",
+                    "type": "object"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -2285,6 +2297,10 @@ const docTemplate = `{
                 },
                 "targetTable": {
                     "description": "The record the user acted on directly; null for operations with\nno single target (e.g. an import).",
+                    "type": "string"
+                },
+                "traceId": {
+                    "description": "W3C trace id of the request/task that ran it.",
                     "type": "string"
                 }
             }
@@ -2296,6 +2312,14 @@ const docTemplate = `{
                     "description": "Number of audit_history rows (record changes) it caused.",
                     "type": "integer"
                 },
+                "client": {
+                    "description": "The app it came from (web, mobile, admin, batch:\u003cjob\u003e, system) -\nverified from the access token.",
+                    "type": "string"
+                },
+                "clientInfo": {
+                    "description": "What the app reported about itself (version, platform, ip,\nuserAgent) - hints, not proof.",
+                    "type": "object"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -2316,6 +2340,10 @@ const docTemplate = `{
                 },
                 "targetTable": {
                     "description": "The record the user acted on directly; null for operations with\nno single target (e.g. an import).",
+                    "type": "string"
+                },
+                "traceId": {
+                    "description": "W3C trace id of the request/task that ran it.",
                     "type": "string"
                 }
             }
@@ -2450,6 +2478,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "isAdmin": {
+                    "type": "boolean"
+                },
+                "isService": {
+                    "description": "A service account (batch job, system) - never signs in.",
                     "type": "boolean"
                 },
                 "name": {

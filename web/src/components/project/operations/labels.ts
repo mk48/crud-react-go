@@ -10,3 +10,17 @@ export const operationKindLabel = (kind: string) =>
 // audit_history/operation table names, e.g. "sample_items" -> "Sample".
 export const tableLabel = (tableName: string) =>
   i18next.t(`operation.table.${tableName}`, { defaultValue: tableName })
+
+// The app an operation came from (operation.client): "web", "mobile",
+// "admin", "system" or "batch:<job>". Keys are looked up literally - the ":"
+// of a batch name isn't an i18next namespace separator here.
+export const clientLabel = (client: string) => {
+  const [kind, job] = client.split(/:(.*)/s)
+  if (kind === "batch" && job) {
+    return i18next.t("operation.client.batch", { job })
+  }
+  return i18next.t(`operation.client.${client}`, {
+    defaultValue: client,
+    nsSeparator: false,
+  })
+}

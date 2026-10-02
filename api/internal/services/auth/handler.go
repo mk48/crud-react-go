@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"kfamily/internal/telemetry"
 	"kfamily/internal/util"
 	"net/http"
 	"time"
@@ -39,7 +40,9 @@ func (h *Handler) Signin(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, util.HttpErrorMessage("code is required"))
 	}
 
-	token, err := casdoorsdk.GetOAuthToken(input.Code, input.State)
+	// The SDK builds its own request - this client puts it in our trace.
+	httpClient := telemetry.HTTPClient(c.Request().Context())
+	token, err := casdoorsdk.GetOAuthToken(input.Code, input.State, casdoorsdk.WithHTTPClient(httpClient))
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, util.HttpError(err, "Unable to sign in with Casdoor"))
 	}

@@ -10,6 +10,7 @@ import { Link } from "@tanstack/react-router"
 import { createColumnHelper } from "@tanstack/react-table"
 import i18next from "i18next"
 import { View } from "lucide-react"
+import ClientBadge from "./client-badge"
 import { operationKindLabel, tableLabel } from "./labels"
 import type { OperationDto } from "./types"
 
@@ -53,6 +54,15 @@ export const columns = [
       ) : (
         "-"
       ),
+  }),
+  // ----------------- Column: Source ---------------------------
+  columnHelper.accessor("client", {
+    header: ({ column }) => (
+      <ToggleSortColumnHeader column={column}>
+        {i18next.t("operation.source")}
+      </ToggleSortColumnHeader>
+    ),
+    cell: (info) => <ClientBadge client={info.getValue()} />,
   }),
   // ----------------- Column: Changes ---------------------------
   columnHelper.accessor("changeCount", {

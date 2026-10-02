@@ -22,6 +22,7 @@
   "yes": "Yes",
   "no": "No",
   "err-loading-data": "Something went wrong while loading data",
+  "error-reference": "Reference:",
   "no-data": "No data",
   "create-success": "Created successfully",
   "create-failed": "Create failed",
@@ -67,7 +68,8 @@
     "delete-confirm-title": "Deleting user: {{Name}}",
     "deleted-successfully": "User: {{Name}} deleted successfully",
     "delete-failed": "Can't delete the user {{Name}}",
-    "not-found": "User is not available for this"
+    "not-found": "User is not available for this",
+    "service-account": "Service account"
   },
   "sidebar": {
     "config": "Menu",
@@ -107,7 +109,7 @@
     "changes": "Changes",
     "details": "Details",
     "record": "Record",
-    "search-placeholder": "Search by operation or table key",
+    "search-placeholder": "Search by operation, table or source key",
     "changes-truncated": "Showing the first {{shown}} of {{total}} changes",
     "side-effect": "Side effect",
     "action": {
@@ -137,6 +139,16 @@
         "sign_up": "First sign-in",
         "relink_sign_in": "Link new sign-in method"
       }
+    },
+    "source": "Source",
+    "client-info": "Client info",
+    "trace-id": "Trace id",
+    "client": {
+      "web": "Web",
+      "mobile": "Mobile",
+      "admin": "Admin",
+      "system": "System",
+      "batch": "Batch: {{job}}"
     }
   }
 }
